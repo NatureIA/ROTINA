@@ -64,11 +64,11 @@ using (var scope = app.Services.CreateScope())
     await db.SaveChangesAsync();
 }
 
-app.UseHttpsRedirection();
 app.UseDefaultFiles(new DefaultFilesOptions { DefaultFileNames = new List<string> { "login.html" } });
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "ROUTINE" }));
 app.MapControllers();
 app.MapFallbackToFile("login.html");
 app.Run();
