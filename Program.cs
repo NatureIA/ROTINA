@@ -36,39 +36,60 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
-
-    var seeds = new[]
-    {
-        new { Login = builder.Configuration["SeedUsers:User1Login"] ?? "acesso1", Password = builder.Configuration["SeedUsers:User1Password"] ?? "" },
-        new { Login = builder.Configuration["SeedUsers:User2Login"] ?? "acesso2", Password = builder.Configuration["SeedUsers:User2Password"] ?? "" }
-    };
-
-    foreach (var seed in seeds)
-    {
-        if (string.IsNullOrWhiteSpace(seed.Password)) continue;
-        var normalized = seed.Login.Trim().ToLowerInvariant();
-        var existing = await db.Users.FirstOrDefaultAsync(x => x.Login.ToLower() == normalized);
-        if (existing is null)
-        {
-            db.Users.Add(new User { Id = Guid.NewGuid(), Login = seed.Login.Trim(), PasswordHash = PasswordTools.Hash(seed.Password) });
-        }
-        else
-        {
-            existing.PasswordHash = PasswordTools.Hash(seed.Password);
-        }
-    }
-    await db.SaveChangesAsync();
-}
-
 app.UseDefaultFiles(new DefaultFilesOptions { DefaultFileNames = new List<string> { "login.html" } });
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "ROUTINE" }));
 app.MapControllers();
 app.MapFallbackToFile("login.html");
-app.Run();
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.EnsureCreatedAsync();
+
+            var seeds = new[]
+            {
+                new { Login = app.Configuration["SeedUsers:User1Login"] ?? "acesso1", Password = app.Configuration["SeedUsers:User1Password"] ?? "" },
+                new { Login = app.Configuration["SeedUsers:User2Login"] ?? "acesso2", Password = app.Configuration["SeedUsers:User2Password"] ?? "" }
+            };
+
+            foreach (var seed in seeds)
+            {
+                if (string.IsNullOrWhiteSpace(seed.Password)) continue;
+
+                var normalized = seed.Login.Trim().ToLowerInvariant();
+                var existing = await db.Users.FirstOrDefaultAsync(x => x.Login.ToLower() == normalized);
+
+                if (existing is null)
+                {
+                    db.Users.Add(new User
+                    {
+                        Id = Guid.NewGuid(),
+                        Login = seed.Login.Trim(),
+                        PasswordHash = PasswordTools.Hash(seed.Password)
+                    });
+                }
+                else if (!PasswordTools.Verify(seed.Password, existing.PasswordHash))
+                {
+                    existing.PasswordHash = PasswordTools.Hash(seed.Password);
+                }
+            }
+
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Falha ao inicializar o banco/usuários.");
+        }
+    });
+});
+
+await app.RunAsync();
