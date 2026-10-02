@@ -101,7 +101,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
         item.Title = (item.Title ?? string.Empty).Trim();
         item.Category = string.IsNullOrWhiteSpace(item.Category) ? "Pessoal" : item.Category.Trim();
         item.Time = string.IsNullOrWhiteSpace(item.Time) ? "09:00" : item.Time.Trim();
-        item.DurationMinutes = Math.Clamp(item.DurationMinutes, 5, 720);
+        item.DurationMinutes = Math.Clamp(item.DurationMinutes, 5, 1435);
         item.Weight = Math.Clamp(item.Weight, 1, 5);
         item.Priority = new[] { "low", "medium", "high" }.Contains(item.Priority) ? item.Priority : "medium";
         item.Type = new[] { "routine", "habit" }.Contains(item.Type) ? item.Type : "routine";
