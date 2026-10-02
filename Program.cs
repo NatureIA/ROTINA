@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Routine.Data;
@@ -37,7 +38,23 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 app.UseDefaultFiles(new DefaultFilesOptions { DefaultFileNames = new List<string> { "login.html" } });
-app.UseStaticFiles();
+
+var staticContentTypes = new FileExtensionContentTypeProvider();
+staticContentTypes.Mappings[".webmanifest"] = "application/manifest+json";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = staticContentTypes,
+    OnPrepareResponse = context =>
+    {
+        var path = context.Context.Request.Path.Value ?? "";
+        if (path.EndsWith("manifest.webmanifest", StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith("service-worker.js", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+        }
+    }
+});
 app.UseAuthentication();
 app.UseAuthorization();
 
