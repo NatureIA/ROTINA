@@ -1,14 +1,259 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ROUTINE</title><link rel="stylesheet" href="/css/style.css?v=20261002-6"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#111214"><meta name="application-name" content="ROUTINE"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ROUTINE"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"></head>
-<body><div class="app"><aside><div class="brand">ROUTINE</div><nav><button class="active" data-view="today">Hoje</button><button data-view="routine">Minha rotina</button><button data-view="habits">Hábitos</button><button data-view="performance">Desempenho</button><button data-view="history">Histórico</button></nav><div class="userbox"><small>Conectado como</small><strong id="currentUser">—</strong><button id="logoutBtn">Sair</button></div></aside>
-<main><header><div><span class="eyebrow" id="pageEyebrow">VISÃO DIÁRIA</span><h1 id="pageTitle">Sua rotina de hoje</h1><p id="pageSubtitle">Execução simples, indicadores claros.</p></div><button class="btn primary" id="newActivity">+ Nova atividade</button></header>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ROUTINE 2.0</title>
+  <link rel="stylesheet" href="/css/style.css?v=20261002-6">
+  <link rel="stylesheet" href="/css/routine2.css?v=20261014-1">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111214">
+  <meta name="application-name" content="ROUTINE">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ROUTINE">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">ROUTINE <span class="version-dot">2.0</span></div>
+    <nav>
+      <button class="active" data-view="today">Hoje</button>
+      <button data-view="routine">Minha rotina</button>
+      <button data-view="todo">To Do</button>
+      <button data-view="habits">Hábitos</button>
+      <button data-view="performance">Desempenho</button>
+      <button data-view="history">Histórico</button>
+    </nav>
+    <div class="userbox">
+      <small>Conectado como</small>
+      <strong id="currentUser">—</strong>
+      <button id="logoutBtn">Sair</button>
+    </div>
+  </aside>
 
-<section class="view active" id="todayView"><div class="datebar"><button id="prevDay">‹</button><strong id="selectedDate"></strong><button id="nextDay">›</button></div><div class="kpis"><article><span>ADERÊNCIA</span><strong id="kpiAdherence">0%</strong><small>Atividades concluídas</small></article><article><span>CONCLUÍDAS</span><strong id="kpiCompleted">0/0</strong><small>Atividades do dia</small></article><article><span>SEQUÊNCIA</span><strong id="kpiStreak">0</strong><small>Dias acima de 70%</small></article><article><span>TEMPO PLANEJADO</span><strong id="kpiTime">0h</strong><small>Carga programada</small></article></div>
-<div class="grid"><article class="panel"><div class="panelhead"><div><h2>Linha do tempo</h2><p>Atividades programadas</p></div></div><div id="timeline"></div></article><div class="stack"><article class="panel"><div class="panelhead"><div><h2>Aderência semanal</h2><p>Últimos sete dias</p></div><span class="chip" id="weekAverage">0%</span></div><div class="chart" id="weeklyChart"></div></article><article class="panel"><div class="panelhead"><div><h2>Áreas</h2><p>Desempenho por categoria</p></div></div><div id="categoryPerformance"></div></article></div></div></section>
+  <main>
+    <header>
+      <div>
+        <span class="eyebrow" id="pageEyebrow">VISÃO DIÁRIA</span>
+        <h1 id="pageTitle">Sua rotina de hoje</h1>
+        <p id="pageSubtitle">Veja o que precisa acontecer agora e avance passo a passo.</p>
+      </div>
+      <button class="btn primary" id="headerAction">+ Nova atividade</button>
+    </header>
 
-<section class="view" id="routineView"><article class="panel"><div class="panelhead"><div><h2>Minha rotina</h2><p>Horários, recorrência e prioridade</p></div></div><div id="routineList" class="routinegrid"></div></article></section>
-<section class="view" id="habitsView"><article class="panel"><div class="panelhead"><div><h2>Hábitos</h2><p>Consistência nos últimos sete dias</p></div></div><div id="habitList"></div></article></section>
-<section class="view" id="performanceView"><div class="kpis"><article><span>MÉDIA 7 DIAS</span><strong id="avg7">0%</strong></article><article><span>MÉDIA 30 DIAS</span><strong id="avg30">0%</strong></article><article><span>CONCLUSÃO 30D</span><strong id="completion30">0%</strong></article><article><span>MELHOR SEQUÊNCIA</span><strong id="bestStreak">0</strong></article></div><article class="panel"><div class="panelhead"><div><h2>Evolução</h2><p>Últimos 14 dias</p></div></div><div class="chart chart14" id="performanceChart"></div></article></section>
-<section class="view" id="historyView"><article class="panel"><div class="panelhead"><div><h2>Histórico</h2><p>Execuções registradas</p></div></div><div class="tablewrap"><table><thead><tr><th>Data</th><th>Hora</th><th>Atividade</th><th>Categoria</th><th>Status</th></tr></thead><tbody id="historyBody"></tbody></table></div></article></section>
-</main></div>
+    <section class="view active" id="todayView">
+      <div class="datebar">
+        <button id="prevDay" aria-label="Dia anterior">‹</button>
+        <strong id="selectedDate"></strong>
+        <button id="nextDay" aria-label="Próximo dia">›</button>
+      </div>
 
-<div class="modal" id="activityModal"><form class="modalcard" id="activityForm"><div class="modalhead"><div><span class="eyebrow">ATIVIDADE</span><h2 id="modalTitle">Nova atividade</h2></div><button type="button" id="closeModal">×</button></div><input type="hidden" id="activityId"><div class="form2"><label>Nome<input id="activityTitle" required></label><label>Categoria<input id="activityCategory" required></label></div><div class="form2"><label>Horário inicial<input id="activityTime" type="time" required></label><label>Horário final<input id="activityEndTime" type="time" required><small id="durationPreview" class="duration-preview">30 min de duração</small></label></div><div class="form2"><label>Prioridade<select id="activityPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label><label>Tipo<select id="activityType"><option value="routine">Rotina</option><option value="habit">Hábito</option></select></label></div><label>Dias<div class="days" id="daysPicker"><label><input type="checkbox" value="0"><span>DOM</span></label><label><input type="checkbox" value="1"><span>SEG</span></label><label><input type="checkbox" value="2"><span>TER</span></label><label><input type="checkbox" value="3"><span>QUA</span></label><label><input type="checkbox" value="4"><span>QUI</span></label><label><input type="checkbox" value="5"><span>SEX</span></label><label><input type="checkbox" value="6"><span>SÁB</span></label></div></label><div class="form2"><label>Data de início<input id="activityStart" type="date"></label><div class="end-date-field"><label>Data final<input id="activityEnd" type="date" disabled></label><label class="check no-end"><input id="activityNoEnd" type="checkbox" checked> Sem data final</label></div></div><label>Observação<textarea id="activityNotes"></textarea></label><label class="check"><input id="activityActive" type="checkbox" checked> Atividade ativa</label><div class="actions"><button type="button" class="btn" id="cancelModal">Cancelar</button><button class="btn primary">Salvar</button></div></form></div><div id="toast" class="toast"></div><script src="/js/app.js?v=20261002-5"></script><script src="/js/pwa.js?v=2"></script></body></html>
+      <div class="focus-grid">
+        <article class="focus-card current" id="currentFocus"></article>
+        <article class="focus-card" id="nextFocus"></article>
+      </div>
+
+      <div class="kpis">
+        <article><span>ADERÊNCIA</span><strong id="kpiAdherence">0%</strong><small>Média das rotinas do dia</small></article>
+        <article><span>ROTINAS CONCLUÍDAS</span><strong id="kpiCompleted">0/0</strong><small>100% concluídas</small></article>
+        <article><span>SEQUÊNCIA</span><strong id="kpiStreak">0</strong><small>Dias acima de 70%</small></article>
+        <article><span>TEMPO PLANEJADO</span><strong id="kpiTime">0h</strong><small>Carga programada</small></article>
+      </div>
+
+      <div class="today-layout">
+        <article class="panel">
+          <div class="panelhead">
+            <div><h2>Atividades de hoje</h2><p>Rotinas programadas e progresso das tarefas.</p></div>
+          </div>
+          <div id="todayActivities"></div>
+        </article>
+        <div class="stack">
+          <article class="panel">
+            <div class="panelhead">
+              <div><h2>Aderência semanal</h2><p>Últimos sete dias.</p></div>
+              <span class="chip" id="weekAverage">0%</span>
+            </div>
+            <div class="chart" id="weeklyChart"></div>
+          </article>
+          <article class="panel">
+            <div class="panelhead"><div><h2>Áreas</h2><p>Desempenho por categoria.</p></div></div>
+            <div id="categoryPerformance"></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="routineView">
+      <article class="panel">
+        <div class="panelhead"><div><h2>Minha rotina</h2><p>Horários, recorrência, hábitos e tarefas vinculadas.</p></div></div>
+        <div id="routineList" class="routinegrid"></div>
+      </article>
+    </section>
+
+    <section class="view" id="todoView">
+      <div class="todo-kpis">
+        <article><span>HOJE</span><strong id="todoTodayCount">0</strong><small>Tarefas previstas</small></article>
+        <article><span>PENDENTES</span><strong id="todoPendingCount">0</strong><small>A fazer ou em andamento</small></article>
+        <article><span>CONCLUÍDAS HOJE</span><strong id="todoDoneCount">0</strong><small>Finalizadas</small></article>
+        <article><span>ATRASADAS</span><strong id="todoOverdueCount">0</strong><small>Precisam de atenção</small></article>
+      </div>
+
+      <article class="panel todo-panel">
+        <div class="todo-topbar">
+          <div class="todo-tabs">
+            <button class="active" data-todo-scope="today">Hoje</button>
+            <button data-todo-scope="week">Semana</button>
+            <button data-todo-scope="all">Todas</button>
+            <button data-todo-scope="done">Concluídas</button>
+          </div>
+          <button class="btn primary" id="newTask">+ Nova tarefa</button>
+        </div>
+
+        <div class="todo-filters">
+          <input id="todoSearch" type="search" placeholder="Buscar tarefa...">
+          <select id="todoRoutineFilter"><option value="">Todas as rotinas</option></select>
+          <select id="todoStatusFilter">
+            <option value="open">Pendentes</option>
+            <option value="all">Todos os status</option>
+            <option value="progress">Em andamento</option>
+            <option value="pending">A fazer</option>
+            <option value="done">Concluídas</option>
+            <option value="skipped">Não realizadas</option>
+          </select>
+        </div>
+
+        <div class="todo-section">
+          <div class="section-title"><strong>Tarefas</strong><span id="todoResultCount">0</span></div>
+          <div id="todoList" class="todo-list"></div>
+        </div>
+
+        <div class="todo-section overdue-section" id="overdueSection">
+          <div class="section-title danger"><strong>Pendências anteriores</strong><span id="overdueLabel"></span></div>
+          <div id="overdueList" class="todo-list"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="view" id="habitsView">
+      <article class="panel">
+        <div class="panelhead"><div><h2>Hábitos</h2><p>Consistência nos últimos sete dias.</p></div></div>
+        <div id="habitList"></div>
+      </article>
+    </section>
+
+    <section class="view" id="performanceView">
+      <div class="kpis">
+        <article><span>MÉDIA 7 DIAS</span><strong id="avg7">0%</strong></article>
+        <article><span>MÉDIA 30 DIAS</span><strong id="avg30">0%</strong></article>
+        <article><span>ROTINAS 100% EM 30D</span><strong id="completion30">0%</strong></article>
+        <article><span>MELHOR SEQUÊNCIA</span><strong id="bestStreak">0</strong></article>
+      </div>
+      <article class="panel">
+        <div class="panelhead"><div><h2>Evolução</h2><p>Últimos 14 dias.</p></div></div>
+        <div class="chart chart14" id="performanceChart"></div>
+      </article>
+    </section>
+
+    <section class="view" id="historyView">
+      <article class="panel">
+        <div class="panelhead"><div><h2>Histórico</h2><p>Rotinas e tarefas registradas.</p></div></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Data</th><th>Hora</th><th>Item</th><th>Contexto</th><th>Status</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="activityModal">
+  <form class="modalcard" id="activityForm">
+    <div class="modalhead">
+      <div><span class="eyebrow">ATIVIDADE</span><h2 id="modalTitle">Nova atividade</h2></div>
+      <button type="button" id="closeActivityModal">×</button>
+    </div>
+    <input type="hidden" id="activityId">
+    <div class="form2">
+      <label>Nome<input id="activityTitle" required></label>
+      <label>Categoria<input id="activityCategory" required></label>
+    </div>
+    <div class="form2">
+      <label>Horário inicial<input id="activityTime" type="time" required></label>
+      <label>Horário final<input id="activityEndTime" type="time" required><small id="durationPreview" class="duration-preview">30 min de duração</small></label>
+    </div>
+    <div class="form2">
+      <label>Prioridade<select id="activityPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label>
+      <label>Tipo<select id="activityType"><option value="routine">Rotina</option><option value="habit">Hábito</option></select></label>
+    </div>
+    <label>Dias
+      <div class="days" id="daysPicker">
+        <label><input type="checkbox" value="0"><span>DOM</span></label>
+        <label><input type="checkbox" value="1"><span>SEG</span></label>
+        <label><input type="checkbox" value="2"><span>TER</span></label>
+        <label><input type="checkbox" value="3"><span>QUA</span></label>
+        <label><input type="checkbox" value="4"><span>QUI</span></label>
+        <label><input type="checkbox" value="5"><span>SEX</span></label>
+        <label><input type="checkbox" value="6"><span>SÁB</span></label>
+      </div>
+    </label>
+    <div class="form2">
+      <label>Data de início<input id="activityStart" type="date"></label>
+      <div class="end-date-field">
+        <label>Data final<input id="activityEnd" type="date" disabled></label>
+        <label class="check no-end"><input id="activityNoEnd" type="checkbox" checked> Sem data final</label>
+      </div>
+    </div>
+    <label>Observação<textarea id="activityNotes"></textarea></label>
+    <label class="check"><input id="activityActive" type="checkbox" checked> Atividade ativa</label>
+    <div class="actions">
+      <button type="button" class="btn" id="cancelActivityModal">Cancelar</button>
+      <button class="btn primary" id="saveActivityBtn">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<div class="modal" id="taskModal">
+  <form class="modalcard task-modal-card" id="taskForm">
+    <div class="modalhead">
+      <div><span class="eyebrow">TO DO</span><h2 id="taskModalTitle">Nova tarefa</h2></div>
+      <button type="button" id="closeTaskModal">×</button>
+    </div>
+    <input type="hidden" id="taskId">
+    <input type="hidden" id="taskRequestId">
+    <label>Tarefa<input id="taskTitle" required placeholder="Ex.: Enviar proposta comercial"></label>
+    <div class="form2">
+      <label>Rotina vinculada<select id="taskActivity"><option value="">Sem rotina vinculada</option></select></label>
+      <label>Projeto / contexto<input id="taskProject" placeholder="Ex.: Cliente X"></label>
+    </div>
+    <div class="form2">
+      <label>Prazo<input id="taskDueDate" type="date"></label>
+      <label>Horário<input id="taskDueTime" type="time"></label>
+    </div>
+    <label>Prioridade<select id="taskPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label>
+    <label>Observação<textarea id="taskNotes" placeholder="Detalhes importantes da tarefa"></textarea></label>
+    <div class="actions">
+      <button type="button" class="btn" id="cancelTaskModal">Cancelar</button>
+      <button class="btn primary" id="saveTaskBtn">Salvar tarefa</button>
+    </div>
+  </form>
+</div>
+
+<div class="drawer-backdrop" id="taskDrawerBackdrop"></div>
+<div class="task-drawer" id="taskDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div><span class="eyebrow">DETALHES DA TAREFA</span><h2 id="drawerTitle">—</h2></div>
+    <button id="closeTaskDrawer">×</button>
+  </div>
+  <div id="drawerBody"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="/js/app2.js?v=20261014-1"></script>
+<script src="/js/pwa.js?v=2"></script>
+</body>
+</html>

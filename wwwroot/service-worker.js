@@ -1,10 +1,11 @@
-const CACHE_NAME = 'routine-static-v2';
+const CACHE_NAME = 'routine-static-v3';
 const STATIC_ASSETS = [
   '/login.html',
   '/index.html',
   '/css/style.css?v=20261002-6',
+  '/css/routine2.css?v=20261014-1',
   '/js/login.js',
-  '/js/app.js?v=20261002-5',
+  '/js/app2.js?v=20261014-1',
   '/js/pwa.js?v=2',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
@@ -32,14 +33,10 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
-    return;
-  }
+  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/login.html'))
-    );
+    event.respondWith(fetch(request).catch(() => caches.match('/login.html')));
     return;
   }
 
