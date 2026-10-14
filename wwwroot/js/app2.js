@@ -3,6 +3,7 @@
   if (!token) { location.replace('/login.html'); return; }
 
   let activities = [];
+  let allActivities = [];
   let executions = [];
   let todoTasks = [];
   let selected = new Date();
@@ -62,14 +63,18 @@
 
   function planned(a, d) {
     const k = key(d);
-    return a.active &&
+    const archivedKey = a.archivedAt ? key(new Date(a.archivedAt)) : null;
+    const effectiveActive = a.archivedAt ? (a.archivedWasActive ?? true) : a.active;
+
+    return effectiveActive &&
+      (!archivedKey || k < archivedKey) &&
       (!a.startDate || k >= a.startDate) &&
       (!a.endDate || k <= a.endDate) &&
       days(a).includes(d.getDay());
   }
 
   function dayActivities(d) {
-    return activities.filter(a => planned(a, d)).sort((a,b) => a.time.localeCompare(b.time));
+    return allActivities.filter(a => planned(a, d)).sort((a,b) => a.time.localeCompare(b.time));
   }
 
   function executionStatus(d, activityId) {
@@ -184,7 +189,7 @@
   }
 
   function activityName(id) {
-    return activities.find(a => a.id === id)?.title || '';
+    return allActivities.find(a => a.id === id)?.title || '';
   }
 
   function taskActivityName(task) {
@@ -379,6 +384,18 @@
       todoTasks.forEach(t => {
         if (t.activityId === id && !t.activityTitle) t.activityTitle = archived?.title || '';
       });
+
+      if (archived) {
+        const archivedSnapshot = {
+          ...archived,
+          archivedWasActive: archived.active,
+          active: false,
+          archivedAt: new Date().toISOString()
+        };
+        allActivities = allActivities.filter(x => x.id !== id);
+        allActivities.push(archivedSnapshot);
+      }
+
       activities = activities.filter(x => x.id !== id);
       renderAll();
       toast('Rotina arquivada; histórico preservado');
@@ -421,7 +438,7 @@
     const rows = [];
 
     executions.filter(e => e.status !== 'pending').forEach(e => {
-      const a = activities.find(x => x.id === e.activityId);
+      const a = allActivities.find(x => x.id === e.activityId);
       rows.push({
         date:e.date,
         time:a?.time || e.activityTime || '—',
@@ -844,6 +861,8 @@
 
     activities = activities.filter(x => x.id !== saved.id);
     activities.push(saved);
+    allActivities = allActivities.filter(x => x.id !== saved.id);
+    allActivities.push(saved);
     renderAll();
     return saved;
   }
@@ -1040,8 +1059,9 @@
       $('#currentUser').textContent = me.login || 'Usuário';
 
       const ref = new Date();
-      [activities, executions, todoTasks] = await Promise.all([
+      [activities, allActivities, executions, todoTasks] = await Promise.all([
         api('/api/activities'),
+        api('/api/activities?includeArchived=true'),
         api(`/api/executions?from=${key(addDays(ref,-220))}&to=${key(addDays(ref,60))}`),
         api('/api/tasks')
       ]);

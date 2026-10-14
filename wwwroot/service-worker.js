@@ -1,11 +1,11 @@
-const CACHE_NAME = 'routine-static-v11';
+const CACHE_NAME = 'routine-static-v12';
 const STATIC_ASSETS = [
   '/login.html',
   '/index.html',
   '/css/style.css?v=20261002-6',
   '/css/routine2.css?v=20261014-3',
   '/js/login.js',
-  '/js/app2.js?v=20261014-8',
+  '/js/app2.js?v=20261014-9',
   '/js/pwa.js?v=2',
   '/manifest.webmanifest',
   '/icons/icon-192.png',

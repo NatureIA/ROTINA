@@ -36,6 +36,28 @@ public class RoutineControllerTests
     }
 
     [Fact]
+    public async Task Activities_CanIncludeArchivedForHistoricalCalculations()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+
+        db.Activities.AddRange(
+            MakeActivity(userId, "Atual"),
+            MakeActivity(userId, "Antiga", DateTime.UtcNow.AddDays(-1))
+        );
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var result = await controller.Activities(includeArchived: true);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var items = Assert.IsAssignableFrom<IEnumerable<Activity>>(ok.Value).ToList();
+
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, x => x.Title == "Antiga" && x.ArchivedAt is not null);
+    }
+
+    [Fact]
     public async Task DeleteActivity_ArchivesInsteadOfDeletingExecutionHistory()
     {
         await using var db = CreateDb();
@@ -262,6 +284,7 @@ public class RoutineControllerTests
             Priority = "medium",
             Type = "routine",
             Active = archivedAt is null,
+            ArchivedWasActive = archivedAt is null ? null : true,
             ArchivedAt = archivedAt,
             ClientRequestId = Guid.NewGuid().ToString()
         };

@@ -170,6 +170,11 @@ BEGIN
     ALTER TABLE [Activities] ADD [ArchivedAt] datetime2 NULL;
 END;
 
+IF COL_LENGTH(N'Activities', N'ArchivedWasActive') IS NULL
+BEGIN
+    ALTER TABLE [Activities] ADD [ArchivedWasActive] bit NULL;
+END;
+
 IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes

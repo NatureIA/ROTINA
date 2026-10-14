@@ -19,9 +19,9 @@ public class RoutineController(AppDbContext db) : ControllerBase
     private static readonly string[] ValidPriorities = ["low", "medium", "high"];
 
     [HttpGet("activities")]
-    public async Task<IActionResult> Activities() =>
+    public async Task<IActionResult> Activities([FromQuery] bool includeArchived = false) =>
         Ok(await db.Activities.AsNoTracking()
-            .Where(x => x.UserId == UserId && x.ArchivedAt == null)
+            .Where(x => x.UserId == UserId && (includeArchived || x.ArchivedAt == null))
             .OrderBy(x => x.Time)
             .ToListAsync());
 
@@ -103,6 +103,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
             x => x.Id == id && x.UserId == UserId && x.ArchivedAt == null);
         if (item is null) return NotFound();
 
+        item.ArchivedWasActive = item.Active;
         item.Active = false;
         item.ArchivedAt = DateTime.UtcNow;
 
