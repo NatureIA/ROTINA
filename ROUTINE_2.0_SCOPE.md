@@ -5,7 +5,8 @@
 - A branch `routine-1.0` é a cópia congelada da versão estável anterior ao início do ROUTINE 2.0.
 - Nenhuma alteração da 2.0 deve ser aplicada à branch `routine-1.0`.
 - A branch `routine-2.0` é o ambiente de desenvolvimento da nova versão.
-- O deploy de produção continua vinculado apenas à branch `main`.
+- A branch `main` representa a versão publicada no único website de produção.
+- ROUTINE 1.0 e ROUTINE 2.0 utilizam o mesmo website e o mesmo banco quando estão em produção; a separação é feita por versão de código no GitHub, não por infraestrutura.
 
 ## Escopo da 2.0
 
@@ -40,7 +41,7 @@ A aderência do dia é a média do progresso de todas as rotinas planejadas para
 
 ## Homologação técnica
 
-A branch `routine-2.0` possui workflow próprio de validação e NÃO faz deploy na produção.
+A branch `routine-2.0` possui workflow próprio de validação e NÃO faz deploy enquanto estiver fora da `main`. Quando aprovada, será integrada à `main`, que publica no mesmo website MonsterASP já utilizado pela ROUTINE 1.0.
 
 A cada alteração são validados:
 

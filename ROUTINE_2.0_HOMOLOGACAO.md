@@ -109,44 +109,63 @@ Se houver problema após publicação:
 Observação: rotinas arquivadas na 2.0 permanecem fisicamente no banco com `Active = false`. Em um rollback para a interface 1.0 elas podem aparecer como pausadas em "Minha rotina", pois a 1.0 não conhece o conceito de arquivamento. Isso não provoca perda de dados.
 
 
-## Ambiente de staging
+## Estratégia correta de versão e publicação
 
-Existe um workflow separado chamado **Deploy ROUTINE 2.0 to Staging**.
+O ROUTINE utiliza **um único website e um único banco de dados**.
 
-Regras de segurança:
+### ROUTINE 1.0
 
-- reage somente à branch `routine-2.0` e também mantém opção de execução manual quando disponível;
-- enquanto os secrets `STAGING_*` não estiverem configurados, o workflow termina em modo seguro sem fazer deploy;
-- depois que o staging for configurado, cada atualização da `routine-2.0` é validada e publicada automaticamente somente no staging;
-- usa exclusivamente secrets com prefixo `STAGING_`;
-- bloqueia o deploy se `STAGING_WEBSITE_NAME` for igual ao `WEBSITE_NAME` da produção;
-- executa validação do frontend, testes .NET e publish antes do WebDeploy;
-- salva o pacote publicado por 7 dias como artifact de homologação;
-- não altera o workflow de produção da `main`.
+A versão 1.0 fica preservada como referência oficial de rollback:
 
-Secrets necessários quando o site de homologação for criado:
+- branch: `routine-1.0`
+- commit imutável: `2b1c7beebde588fb13353fa872034904eaeb1f9c`
 
-- `STAGING_WEBSITE_NAME`
-- `STAGING_SERVER_COMPUTER_NAME`
-- `STAGING_SERVER_USERNAME`
-- `STAGING_SERVER_PASSWORD`
-- `STAGING_BASE_URL` (ex.: `https://routine2-seu-site.runasp.net`)
+Essa branch não recebe mais desenvolvimento. Ela existe apenas para permitir retorno rápido à versão estável anterior.
 
-Isso permite manter a `main` completamente intocada durante toda a homologação.
+### ROUTINE 2.0
 
-O site de staging também deve possuir suas próprias configurações de ambiente:
+O desenvolvimento ocorre na branch:
 
-- `ConnectionStrings__DefaultConnection` apontando para banco de homologação;
-- `Jwt__Key`;
-- `SeedUsers__User1Login` / `SeedUsers__User1Password`;
-- `SeedUsers__User2Login` / `SeedUsers__User2Password`.
+- `routine-2.0`
 
-O banco de homologação deve ser separado do banco de produção. Nunca usar `db71205` para testes destrutivos ou de homologação da 2.0.
+Quando a homologação estiver aprovada, a PR da 2.0 será integrada à `main`.
 
-O deploy de staging só é considerado concluído quando `STAGING_BASE_URL/health` responder simultaneamente:
+### Produção
 
-- `version: 2.0`
-- `status: ok`
-- `database: ready`
+A branch `main` representa o que está efetivamente publicado em:
 
-O workflow tenta essa verificação automaticamente por até aproximadamente 1 minuto após o WebDeploy.
+- `https://routine.runasp.net`
+
+O workflow de produção existente publica a `main` no **mesmo website MonsterASP** e utiliza o **mesmo banco MSSQL** configurado no site.
+
+Fluxo:
+
+```
+routine-1.0  = backup congelado
+routine-2.0  = desenvolvimento
+main         = produção
+
+Quando aprovado:
+routine-2.0 -> main -> mesmo MonsterASP -> mesmo banco
+```
+
+## Rollback real para ROUTINE 1.0
+
+Se a ROUTINE 2.0 apresentar um problema grave após entrar em produção:
+
+1. restaurar a `main` para o commit oficial da ROUTINE 1.0:
+   `2b1c7beebde588fb13353fa872034904eaeb1f9c`
+2. executar novamente o workflow de produção;
+3. o mesmo `routine.runasp.net` volta a servir o código da ROUTINE 1.0;
+4. o mesmo banco continua sendo utilizado;
+5. as tabelas e colunas extras criadas pela 2.0 permanecem no banco, mas a 1.0 simplesmente as ignora.
+
+Não existe necessidade de segundo website ou segundo banco para esse modelo de rollback.
+
+### Observação de compatibilidade
+
+As mudanças de banco da 2.0 foram construídas de forma aditiva para permitir esse retorno.
+
+A ROUTINE 2.0 não remove tabelas nem colunas da 1.0.
+
+Rotinas arquivadas na 2.0 permanecem fisicamente no banco com `Active = false`. Se houver rollback para a interface 1.0, elas podem aparecer como pausadas, porque a 1.0 não conhece o conceito de arquivamento. Isso não representa perda de dados.
