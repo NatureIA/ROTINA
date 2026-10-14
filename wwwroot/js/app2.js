@@ -356,7 +356,7 @@
             <div class="routines">
               <button class="mini" data-edit-activity="${a.id}">Editar</button>
               <button class="mini orange" data-toggle-activity="${a.id}">${a.active ? 'Pausar' : 'Ativar'}</button>
-              <button class="mini red" data-delete-activity="${a.id}">Excluir</button>
+              <button class="mini red" data-delete-activity="${a.id}">Arquivar</button>
             </div>
           </div>`;
         }).join('')
@@ -720,11 +720,17 @@
   }
 
   async function setTaskStatus(id, status) {
+    const existing = todoTasks.find(t => t.id === id);
     const updated = await api(`/api/tasks/${id}/status`, {
       method:'PUT',
       body:JSON.stringify({ status })
     });
-    todoTasks = todoTasks.map(t => t.id === id ? updated : t);
+    const merged = {
+      ...existing,
+      ...updated,
+      activityTitle: updated.activityTitle || existing?.activityTitle || ''
+    };
+    todoTasks = todoTasks.map(t => t.id === id ? merged : t);
     renderAll();
     if (activeTaskId === id) renderTaskDrawer();
     toast(statusLabel(status));
