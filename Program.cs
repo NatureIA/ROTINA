@@ -55,10 +55,11 @@ app.UseStaticFiles(new StaticFileOptions
         }
     }
 });
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "ROUTINE" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "ROUTINE", version = "2.0" }));
 app.MapControllers();
 app.MapFallbackToFile("login.html");
 
@@ -71,6 +72,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
             using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await db.Database.EnsureCreatedAsync();
+            await EnsureRoutine2SchemaAsync(db);
 
             var seeds = new[]
             {
@@ -104,9 +106,61 @@ app.Lifetime.ApplicationStarted.Register(() =>
         }
         catch (Exception ex)
         {
-            app.Logger.LogError(ex, "Falha ao inicializar o banco/usuários.");
+            app.Logger.LogError(ex, "Falha ao inicializar o banco/usuários/ROUTINE 2.0.");
         }
     });
 });
 
 await app.RunAsync();
+
+static async Task EnsureRoutine2SchemaAsync(AppDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[RoutineTasks]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [RoutineTasks] (
+        [Id] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [ActivityId] uniqueidentifier NULL,
+        [Title] nvarchar(160) NOT NULL,
+        [Project] nvarchar(100) NULL,
+        [DueDate] nvarchar(10) NULL,
+        [DueTime] nvarchar(5) NULL,
+        [Status] nvarchar(20) NOT NULL,
+        [Priority] nvarchar(20) NOT NULL,
+        [Notes] nvarchar(1000) NULL,
+        [ClientRequestId] nvarchar(64) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_RoutineTasks] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_RoutineTasks_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]),
+        CONSTRAINT [FK_RoutineTasks_Activities_ActivityId] FOREIGN KEY ([ActivityId]) REFERENCES [Activities] ([Id]) ON DELETE SET NULL
+    );
+
+    CREATE INDEX [IX_RoutineTasks_UserId_DueDate] ON [RoutineTasks] ([UserId], [DueDate]);
+    CREATE INDEX [IX_RoutineTasks_ActivityId] ON [RoutineTasks] ([ActivityId]);
+    CREATE UNIQUE INDEX [IX_RoutineTasks_UserId_ClientRequestId]
+        ON [RoutineTasks] ([UserId], [ClientRequestId])
+        WHERE [ClientRequestId] IS NOT NULL;
+END;
+
+IF OBJECT_ID(N'[ChecklistItems]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [ChecklistItems] (
+        [Id] uniqueidentifier NOT NULL,
+        [TaskId] uniqueidentifier NOT NULL,
+        [Title] nvarchar(200) NOT NULL,
+        [Done] bit NOT NULL,
+        [SortOrder] int NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_ChecklistItems] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_ChecklistItems_RoutineTasks_TaskId] FOREIGN KEY ([TaskId]) REFERENCES [RoutineTasks] ([Id]) ON DELETE CASCADE
+    );
+
+    CREATE INDEX [IX_ChecklistItems_TaskId_SortOrder] ON [ChecklistItems] ([TaskId], [SortOrder]);
+END;
+""";
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+}
