@@ -129,6 +129,7 @@ Secrets necessários quando o site de homologação for criado:
 - `STAGING_SERVER_COMPUTER_NAME`
 - `STAGING_SERVER_USERNAME`
 - `STAGING_SERVER_PASSWORD`
+- `STAGING_BASE_URL` (ex.: `https://routine2-seu-site.runasp.net`)
 
 O site de staging também deve possuir suas próprias configurações de ambiente:
 
@@ -138,3 +139,11 @@ O site de staging também deve possuir suas próprias configurações de ambient
 - `SeedUsers__User2Login` / `SeedUsers__User2Password`.
 
 O banco de homologação deve ser separado do banco de produção. Nunca usar `db71205` para testes destrutivos ou de homologação da 2.0.
+
+O deploy de staging só é considerado concluído quando `STAGING_BASE_URL/health` responder simultaneamente:
+
+- `version: 2.0`
+- `status: ok`
+- `database: ready`
+
+O workflow tenta essa verificação automaticamente por até aproximadamente 1 minuto após o WebDeploy.
