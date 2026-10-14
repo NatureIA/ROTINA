@@ -293,11 +293,15 @@
       const st = executionStatus(selected, a.id);
 
       const actions = linked.length
-        ? `<button class="btn activity-task-btn" data-open-tasks="${a.id}">Abrir tarefas <span>${done}/${linked.length}</span></button>`
+        ? `<div class="activity-actions">
+            <button class="btn activity-task-btn" data-open-tasks="${a.id}">Abrir tarefas <span>${done}/${linked.length}</span></button>
+            <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
+          </div>`
         : `<div class="activity-actions">
             <button class="mini orange" data-activity-status="progress" data-activity-id="${a.id}">Iniciar</button>
             <button class="mini good" data-activity-status="done" data-activity-id="${a.id}">Concluir</button>
             <button class="mini red" data-activity-status="skipped" data-activity-id="${a.id}">Não realizada</button>
+            <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
           </div>`;
 
       return `<div class="day-activity ${st}">
@@ -311,8 +315,9 @@
       </div>`;
     }).join('') : '<div class="empty">Nenhuma atividade planejada para este dia.</div>';
 
-    $$('[data-open-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.openTasks));
-    $$('[data-activity-status]').forEach(b => b.onclick = () => setExecution(b.dataset.activityId, b.dataset.activityStatus));
+    $('[data-open-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.openTasks));
+    $('[data-new-task-activity]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.newTaskActivity));
+    $('[data-activity-status]').forEach(b => b.onclick = () => setExecution(b.dataset.activityId, b.dataset.activityStatus));
 
     renderBars('#weeklyChart', 7, selected);
     $('#weekAverage').textContent = avg(7, selected) + '% média';
@@ -330,7 +335,13 @@
               <strong>${a.time} → ${endTimeFor(a)}</strong>
             </div>
             <p>${days(a).map(x => names[x]).join(', ')} · ${dur(a.durationMinutes)}${a.endDate ? ` · até ${fromKey(a.endDate).toLocaleDateString('pt-BR')}` : ' · sem data final'}</p>
-            <div class="routine-task-summary"><span>${openTasks} tarefa${openTasks === 1 ? '' : 's'} pendente${openTasks === 1 ? '' : 's'}</span><button class="mini orange" data-routine-tasks="${a.id}">Ver tarefas</button></div>
+            <div class="routine-task-summary">
+              <span>${openTasks} tarefa${openTasks === 1 ? '' : 's'} pendente${openTasks === 1 ? '' : 's'}</span>
+              <div class="routine-inline-actions">
+                <button class="mini" data-routine-new-task="${a.id}">+ Tarefa</button>
+                <button class="mini orange" data-routine-tasks="${a.id}">Ver tarefas</button>
+              </div>
+            </div>
             <div class="routines">
               <button class="mini" data-edit-activity="${a.id}">Editar</button>
               <button class="mini orange" data-toggle-activity="${a.id}">${a.active ? 'Pausar' : 'Ativar'}</button>
@@ -340,8 +351,9 @@
         }).join('')
       : '<div class="empty">Sua rotina está vazia.</div>';
 
-    $$('[data-edit-activity]').forEach(b => b.onclick = () => openActivityModal(b.dataset.editActivity));
-    $$('[data-routine-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.routineTasks));
+    $('[data-edit-activity]').forEach(b => b.onclick = () => openActivityModal(b.dataset.editActivity));
+    $('[data-routine-new-task]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.routineNewTask));
+    $('[data-routine-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.routineTasks));
     $$('[data-toggle-activity]').forEach(b => b.onclick = async () => {
       const a = activities.find(x => x.id === b.dataset.toggleActivity);
       if (!a) return;
