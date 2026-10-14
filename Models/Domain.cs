@@ -64,6 +64,7 @@ public class RoutineTask
     [MaxLength(20)] public string Priority { get; set; } = "medium";
     [MaxLength(1000)] public string? Notes { get; set; }
     [MaxLength(64)] public string? ClientRequestId { get; set; }
+    public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<TaskChecklistItem> Checklist { get; set; } = new List<TaskChecklistItem>();

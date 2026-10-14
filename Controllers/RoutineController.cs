@@ -235,6 +235,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
             Priority = normalized.Priority,
             Notes = normalized.Notes,
             ClientRequestId = normalized.ClientRequestId,
+            CompletedAt = normalized.Status == "done" ? DateTime.UtcNow : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -289,6 +290,11 @@ public class RoutineController(AppDbContext db) : ControllerBase
         item.Project = normalized.Project;
         item.DueDate = normalized.DueDate;
         item.DueTime = normalized.DueTime;
+        if (normalized.Status == "done" && item.Status != "done")
+            item.CompletedAt = DateTime.UtcNow;
+        else if (normalized.Status != "done")
+            item.CompletedAt = null;
+
         item.Status = normalized.Status;
         item.Priority = normalized.Priority;
         item.Notes = normalized.Notes;
@@ -307,6 +313,11 @@ public class RoutineController(AppDbContext db) : ControllerBase
         var item = await db.RoutineTasks.Include(x => x.Checklist)
             .FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId);
         if (item is null) return NotFound();
+
+        if (request.Status == "done" && item.Status != "done")
+            item.CompletedAt = DateTime.UtcNow;
+        else if (request.Status != "done")
+            item.CompletedAt = null;
 
         item.Status = request.Status;
         item.UpdatedAt = DateTime.UtcNow;

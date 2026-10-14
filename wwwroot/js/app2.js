@@ -169,6 +169,12 @@
     if (noEnd) $('#activityEnd').value = '';
   }
 
+  function completionDateKey(task) {
+    if (!task?.completedAt) return '';
+    const d = new Date(task.completedAt);
+    return Number.isNaN(d.getTime()) ? '' : key(d);
+  }
+
   function statusLabel(status) {
     return ({pending:'A fazer', progress:'Em andamento', done:'Concluída', skipped:'Não realizada'})[status] || status;
   }
@@ -420,7 +426,9 @@
     });
 
     todoTasks.filter(t => ['done','skipped'].includes(t.status)).forEach(t => {
-      const date = t.dueDate || String(t.updatedAt || '').slice(0,10) || todayKey();
+      const date = t.status === 'done'
+        ? (completionDateKey(t) || t.dueDate || String(t.updatedAt || '').slice(0,10) || todayKey())
+        : (t.dueDate || String(t.updatedAt || '').slice(0,10) || todayKey());
       rows.push({
         date,
         time:t.dueTime || '—',
@@ -517,7 +525,7 @@
     renderTodoContext();
     const todayTasks = todoTasks.filter(t => t.dueDate === today);
     const pending = todoTasks.filter(t => ['pending','progress'].includes(t.status));
-    const doneToday = todayTasks.filter(t => t.status === 'done');
+    const doneToday = todoTasks.filter(t => t.status === 'done' && (completionDateKey(t) || t.dueDate) === today);
     const overdue = todoTasks.filter(t => ['pending','progress'].includes(t.status) && t.dueDate && t.dueDate < today);
 
     $('#todoTodayCount').textContent = todayTasks.length;

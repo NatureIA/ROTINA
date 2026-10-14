@@ -147,6 +147,7 @@ BEGIN
         [Priority] nvarchar(20) NOT NULL,
         [Notes] nvarchar(1000) NULL,
         [ClientRequestId] nvarchar(64) NULL,
+        [CompletedAt] datetime2 NULL,
         [CreatedAt] datetime2 NOT NULL,
         [UpdatedAt] datetime2 NOT NULL,
         CONSTRAINT [PK_RoutineTasks] PRIMARY KEY ([Id]),
@@ -159,6 +160,11 @@ BEGIN
     CREATE UNIQUE INDEX [IX_RoutineTasks_UserId_ClientRequestId]
         ON [RoutineTasks] ([UserId], [ClientRequestId])
         WHERE [ClientRequestId] IS NOT NULL;
+END;
+
+IF COL_LENGTH(N'RoutineTasks', N'CompletedAt') IS NULL
+BEGIN
+    ALTER TABLE [RoutineTasks] ADD [CompletedAt] datetime2 NULL;
 END;
 
 IF OBJECT_ID(N'[ChecklistItems]', N'U') IS NULL
