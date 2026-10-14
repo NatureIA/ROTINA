@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ROUTINE 2.0</title>
   <link rel="stylesheet" href="/css/style.css?v=20261002-6">
-  <link rel="stylesheet" href="/css/routine2.css?v=20261014-1">
+  <link rel="stylesheet" href="/css/routine2.css?v=20261014-2">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#111214">
   <meta name="application-name" content="ROUTINE">
@@ -94,6 +94,24 @@
     </section>
 
     <section class="view" id="todoView">
+      <article class="todo-context" id="todoContext" hidden>
+        <div class="todo-context-main">
+          <span class="eyebrow">ROTINA SELECIONADA</span>
+          <div class="todo-context-title">
+            <div>
+              <h2 id="todoContextTitle">—</h2>
+              <p id="todoContextMeta">—</p>
+            </div>
+            <button class="btn primary" id="todoContextNewTask">+ Nova tarefa nesta rotina</button>
+          </div>
+          <div class="todo-context-progress">
+            <div><span id="todoContextProgressText">0 de 0 tarefas concluídas</span><strong id="todoContextProgressPct">0%</strong></div>
+            <div class="activity-progress"><i id="todoContextProgressBar" style="width:0%"></i></div>
+          </div>
+        </div>
+        <button class="todo-context-clear" id="todoContextClear" type="button">Ver todas as tarefas</button>
+      </article>
+
       <div class="todo-kpis">
         <article><span>HOJE</span><strong id="todoTodayCount">0</strong><small>Tarefas previstas</small></article>
         <article><span>PENDENTES</span><strong id="todoPendingCount">0</strong><small>A fazer ou em andamento</small></article>
@@ -253,7 +271,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="/js/app2.js?v=20261014-1"></script>
+<script src="/js/app2.js?v=20261014-2"></script>
 <script src="/js/pwa.js?v=2"></script>
 </body>
 </html>

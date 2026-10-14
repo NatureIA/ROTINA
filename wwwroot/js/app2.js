@@ -469,8 +469,39 @@
     ).sort(taskSort);
   }
 
+  function renderTodoContext() {
+    const box = $('#todoContext');
+    const activity = todoActivity ? activities.find(a => a.id === todoActivity) : null;
+
+    if (!activity) {
+      box.hidden = true;
+      return;
+    }
+
+    box.hidden = false;
+    $('#todoContextTitle').textContent = activity.title;
+    $('#todoContextMeta').textContent = `${activity.time} → ${endTimeFor(activity)} · ${activity.category} · ${activity.type === 'habit' ? 'Hábito' : 'Rotina'}`;
+
+    const selectedDateKey = key(selected);
+    const relatedForSelectedDay = todoTasks.filter(t => t.activityId === activity.id && t.dueDate === selectedDateKey);
+    const relevant = relatedForSelectedDay.length
+      ? relatedForSelectedDay
+      : todoTasks.filter(t => t.activityId === activity.id && ['pending','progress'].includes(t.status));
+
+    const total = relevant.length;
+    const done = relevant.filter(t => t.status === 'done').length;
+    const pct = total ? Math.round(done / total * 100) : 0;
+
+    $('#todoContextProgressText').textContent = total
+      ? `${done} de ${total} tarefas concluídas`
+      : 'Nenhuma tarefa cadastrada para esta rotina';
+    $('#todoContextProgressPct').textContent = pct + '%';
+    $('#todoContextProgressBar').style.width = pct + '%';
+  }
+
   function renderTodo() {
     const today = todayKey();
+    renderTodoContext();
     const todayTasks = todoTasks.filter(t => t.dueDate === today);
     const pending = todoTasks.filter(t => ['pending','progress'].includes(t.status));
     const doneToday = todayTasks.filter(t => t.status === 'done');
@@ -931,6 +962,13 @@
   $('#closeTaskModal').onclick = closeTaskModal;
   $('#cancelTaskModal').onclick = closeTaskModal;
   $('#newTask').onclick = () => openTaskModal('', todoActivity);
+  $('#todoContextNewTask').onclick = () => openTaskModal('', todoActivity);
+  $('#todoContextClear').onclick = () => {
+    todoActivity = '';
+    todoScope = 'today';
+    todoStatus = 'open';
+    renderTodo();
+  };
 
   $('#prevDay').onclick = () => { selected = addDays(selected, -1); renderToday(); };
   $('#nextDay').onclick = () => { selected = addDays(selected, 1); renderToday(); };
