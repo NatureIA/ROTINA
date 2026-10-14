@@ -326,10 +326,22 @@
               <button class="btn activity-task-btn" data-open-tasks="${a.id}">Abrir tarefas <span>${done}/${linked.length}</span></button>
               <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
             </div>`
-          : `<div class="activity-actions">
-              <button class="mini orange" data-activity-status="progress" data-activity-id="${a.id}">Iniciar</button>
-              <button class="mini good" data-activity-status="done" data-activity-id="${a.id}">Concluir</button>
-              <button class="mini red" data-activity-status="skipped" data-activity-id="${a.id}">Não realizada</button>
+          : `<div class="activity-actions activity-status-actions">
+              <button
+                class="mini orange activity-status-choice status-progress ${st !== 'pending' && st !== 'progress' ? 'is-muted' : ''} ${st === 'progress' ? 'is-selected' : ''}"
+                data-activity-status="progress"
+                data-activity-id="${a.id}"
+                aria-pressed="${st === 'progress'}">Iniciar</button>
+              <button
+                class="mini good activity-status-choice status-done ${st !== 'pending' && st !== 'done' ? 'is-muted' : ''} ${st === 'done' ? 'is-selected' : ''}"
+                data-activity-status="done"
+                data-activity-id="${a.id}"
+                aria-pressed="${st === 'done'}">Concluir</button>
+              <button
+                class="mini red activity-status-choice status-skipped ${st !== 'pending' && st !== 'skipped' ? 'is-muted' : ''} ${st === 'skipped' ? 'is-selected' : ''}"
+                data-activity-status="skipped"
+                data-activity-id="${a.id}"
+                aria-pressed="${st === 'skipped'}">Não realizada</button>
               <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
             </div>`;
 
