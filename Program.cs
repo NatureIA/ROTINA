@@ -90,13 +90,16 @@ app.UseAuthorization();
 
 app.MapGet("/health", () =>
 {
-    var ready = databaseReady.Task.IsCompletedSuccessfully && databaseReady.Task.Result;
+    var completed = databaseReady.Task.IsCompletedSuccessfully;
+    var ready = completed && databaseReady.Task.Result;
+    var failed = completed && !databaseReady.Task.Result;
+
     return Results.Ok(new
     {
-        status = ready ? "ok" : "initializing",
+        status = ready ? "ok" : failed ? "error" : "initializing",
         app = "ROUTINE",
         version = "2.0",
-        database = ready ? "ready" : "waiting"
+        database = ready ? "ready" : failed ? "error" : "waiting"
     });
 });
 app.MapControllers();
