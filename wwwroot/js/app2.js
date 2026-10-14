@@ -769,6 +769,7 @@
     const form = $('#activityForm');
     form.reset();
     $('#activityId').value = '';
+    $('#activityRequestId').value = uuid();
     $('#activityTime').value = '09:00';
     $('#activityEndTime').value = '09:30';
     $('#activityPriority').value = 'medium';
@@ -784,6 +785,7 @@
       const a = activities.find(x => x.id === id);
       if (!a) return;
       $('#activityId').value = a.id;
+      $('#activityRequestId').value = a.clientRequestId || '';
       $('#activityTitle').value = a.title;
       $('#activityCategory').value = a.category;
       $('#activityTime').value = a.time;
@@ -920,6 +922,7 @@
         startDate,
         endDate,
         notes:$('#activityNotes').value.trim() || null,
+        clientRequestId:old?.clientRequestId || $('#activityRequestId').value || null,
         active:$('#activityActive').checked
       });
       closeActivityModal();

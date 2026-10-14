@@ -30,6 +30,7 @@ public class Activity
     [MaxLength(10)] public string? StartDate { get; set; }
     [MaxLength(10)] public string? EndDate { get; set; }
     [MaxLength(500)] public string? Notes { get; set; }
+    [MaxLength(64)] public string? ClientRequestId { get; set; }
     public bool Active { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Execution> Executions { get; set; } = new List<Execution>();

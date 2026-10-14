@@ -116,6 +116,23 @@ await app.RunAsync();
 static async Task EnsureRoutine2SchemaAsync(AppDbContext db)
 {
     const string sql = """
+IF COL_LENGTH(N'Activities', N'ClientRequestId') IS NULL
+BEGIN
+    ALTER TABLE [Activities] ADD [ClientRequestId] nvarchar(64) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_Activities_UserId_ClientRequestId'
+      AND object_id = OBJECT_ID(N'[Activities]')
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_Activities_UserId_ClientRequestId]
+        ON [Activities] ([UserId], [ClientRequestId])
+        WHERE [ClientRequestId] IS NOT NULL;
+END;
+
 IF OBJECT_ID(N'[RoutineTasks]', N'U') IS NULL
 BEGIN
     CREATE TABLE [RoutineTasks] (

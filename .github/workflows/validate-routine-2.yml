@@ -24,6 +24,11 @@ jobs:
         run: |
           node -e "const fs=require('fs'); const s=fs.readFileSync('wwwroot/js/app2.js','utf8'); const lines=s.split(/\\r?\\n/); const bad=lines.map((line,i)=>({i:i+1,line})).filter(x=>/(?<!\\$)\\$\\([^)]*\\)\\.forEach/.test(x.line)); if(bad.length){console.error(bad.map(x=>x.i+': '+x.line).join('\\n')); process.exit(1)} console.log('selector collections ok')"
 
+      - name: Validate static UI references
+        shell: pwsh
+        run: |
+          node -e "const fs=require('fs'); const html=fs.readFileSync('wwwroot/index.html','utf8'); const js=fs.readFileSync('wwwroot/js/app2.js','utf8'); const ids=[...html.matchAll(/\bid=[\"']([^\"']+)[\"']/g)].map(x=>x[1]); const dup=[...new Set(ids.filter((x,i)=>ids.indexOf(x)!==i))]; if(dup.length){console.error('duplicate ids: '+dup.join(', ')); process.exit(1)} const refs=[...js.matchAll(/\$\('#([A-Za-z0-9_-]+)'\)/g)].map(x=>x[1]); const missing=[...new Set(refs.filter(id=>!ids.includes(id)))]; if(missing.length){console.error('missing ids: '+missing.join(', ')); process.exit(1)} console.log('ui references ok')"
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:

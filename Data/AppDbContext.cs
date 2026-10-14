@@ -21,6 +21,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<Activity>()
+            .HasIndex(x => new { x.UserId, x.ClientRequestId })
+            .IsUnique()
+            .HasDatabaseName("IX_Activities_UserId_ClientRequestId")
+            .HasFilter("[ClientRequestId] IS NOT NULL");
+
         modelBuilder.Entity<Execution>()
             .HasOne(x => x.User)
             .WithMany(x => x.Executions)

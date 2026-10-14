@@ -32,6 +32,13 @@ public class RoutineController(AppDbContext db) : ControllerBase
         if (string.IsNullOrWhiteSpace(input.Title))
             return BadRequest(new { message = "Informe o nome da atividade." });
 
+        if (!string.IsNullOrWhiteSpace(input.ClientRequestId))
+        {
+            var byRequest = await db.Activities.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserId == UserId && x.ClientRequestId == input.ClientRequestId);
+            if (byRequest is not null) return Ok(byRequest);
+        }
+
         if (await HasDuplicateActivity(input))
             return Conflict(new { message = "Esta atividade já existe na sua rotina." });
 
@@ -43,7 +50,19 @@ public class RoutineController(AppDbContext db) : ControllerBase
         input.CreatedAt = DateTime.UtcNow;
 
         db.Activities.Add(input);
-        await db.SaveChangesAsync();
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (!string.IsNullOrWhiteSpace(input.ClientRequestId))
+        {
+            var existing = await db.Activities.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserId == UserId && x.ClientRequestId == input.ClientRequestId);
+            if (existing is not null) return Ok(existing);
+            throw;
+        }
+
         return Ok(input);
     }
 
@@ -401,6 +420,9 @@ public class RoutineController(AppDbContext db) : ControllerBase
         item.EndDate = NormalizeDate(item.EndDate);
         item.Notes = string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim();
         if (item.Notes?.Length > 500) item.Notes = item.Notes[..500];
+
+        item.ClientRequestId = string.IsNullOrWhiteSpace(item.ClientRequestId) ? null : item.ClientRequestId.Trim();
+        if (item.ClientRequestId?.Length > 64) item.ClientRequestId = item.ClientRequestId[..64];
     }
 
     private static (
