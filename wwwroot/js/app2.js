@@ -94,7 +94,7 @@
   function activityProgress(a, d) {
     const linked = linkedTasks(a.id, d);
     if (linked.length) {
-      const done = linked.filter(t => t.status === 'done').length;
+      const done = linked.filter(t => taskDoneForDate(t, d)).length;
       return Math.round(done / linked.length * 100);
     }
     return executionStatus(d, a.id) === 'done' ? 100 : 0;
@@ -178,6 +178,12 @@
     if (!task?.completedAt) return '';
     const d = new Date(task.completedAt);
     return Number.isNaN(d.getTime()) ? '' : key(d);
+  }
+
+  function taskDoneForDate(task, d) {
+    if (task?.status !== 'done') return false;
+    const completed = completionDateKey(task);
+    return !completed || completed <= key(d);
   }
 
   function statusLabel(status) {
@@ -286,7 +292,7 @@
 
     return `<span class="focus-label">${label}</span>
       <div class="focus-title"><strong>${esc(activity.title)}</strong><span>${activity.time} → ${endTimeFor(activity)}</span></div>
-      <p>${esc(activity.category)}${linked.length ? ` · ${linked.filter(t => t.status === 'done').length}/${linked.length} tarefas concluídas` : ''}</p>
+      <p>${esc(activity.category)}${linked.length ? ` · ${linked.filter(t => taskDoneForDate(t, d)).length}/${linked.length} tarefas concluídas no prazo do dia` : ''}</p>
       ${nextTaskText}
       <div class="focus-progress"><i style="width:${progress}%"></i></div>
       <div class="focus-bottom"><span>${progress}%</span>${action}</div>`;
@@ -306,7 +312,7 @@
 
     $('#todayActivities').innerHTML = list.length ? list.map(a => {
       const linked = linkedTasks(a.id, selected);
-      const done = linked.filter(t => t.status === 'done').length;
+      const done = linked.filter(t => taskDoneForDate(t, selected)).length;
       const progress = activityProgress(a, selected);
       const st = executionStatus(selected, a.id);
 
@@ -544,7 +550,9 @@
       : todoTasks.filter(t => t.activityId === activity.id && ['pending','progress'].includes(t.status));
 
     const total = relevant.length;
-    const done = relevant.filter(t => t.status === 'done').length;
+    const done = relatedForSelectedDay.length
+      ? relevant.filter(t => taskDoneForDate(t, selected)).length
+      : relevant.filter(t => t.status === 'done').length;
     const pct = total ? Math.round(done / total * 100) : 0;
 
     $('#todoContextProgressText').textContent = total
