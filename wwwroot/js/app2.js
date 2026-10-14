@@ -781,17 +781,34 @@
     toast(statusLabel(status));
   }
 
-  function renderTaskSelects() {
-    const options = '<option value="">Sem rotina vinculada</option>' +
-      [...activities].filter(a => a.active).sort((a,b) => a.title.localeCompare(b.title))
-        .map(a => `<option value="${a.id}">${esc(a.title)}</option>`).join('');
-    $('#taskActivity').innerHTML = options;
+  function renderTaskSelects(task = null) {
+    const activeOptions = [...activities]
+      .filter(a => a.active)
+      .sort((a,b) => a.title.localeCompare(b.title))
+      .map(a => `<option value="${a.id}">${esc(a.title)}</option>`)
+      .join('');
+
+    const linkedArchived = task?.activityId && !activities.some(a => a.id === task.activityId)
+      ? allActivities.find(a => a.id === task.activityId)
+      : null;
+
+    const archivedOption = linkedArchived
+      ? `<option value="${linkedArchived.id}">${esc(linkedArchived.title)} (arquivada)</option>`
+      : '';
+
+    $('#taskActivity').innerHTML =
+      '<option value="">Sem rotina vinculada</option>' +
+      activeOptions +
+      archivedOption;
   }
 
   function openTaskModal(id = '', presetActivityId = '') {
+    const task = id ? todoTasks.find(t => t.id === id) : null;
+    if (id && !task) return;
+
     const form = $('#taskForm');
     form.reset();
-    renderTaskSelects();
+    renderTaskSelects(task);
 
     $('#taskId').value = '';
     $('#taskRequestId').value = uuid();
@@ -801,8 +818,6 @@
     $('#taskModalTitle').textContent = id ? 'Editar tarefa' : 'Nova tarefa';
 
     if (id) {
-      const task = todoTasks.find(t => t.id === id);
-      if (!task) return;
       $('#taskId').value = task.id;
       $('#taskRequestId').value = task.clientRequestId || uuid();
       $('#taskTitle').value = task.title;
@@ -822,13 +837,24 @@
   }
 
   async function saveTask(payload, id = '') {
+    const previous = id ? todoTasks.find(t => t.id === id) : null;
     const saved = id
       ? await api('/api/tasks/' + id, { method:'PUT', body:JSON.stringify(payload) })
       : await api('/api/tasks', { method:'POST', body:JSON.stringify(payload) });
 
-    todoTasks = todoTasks.filter(t => t.id !== saved.id);
-    todoTasks.push(saved);
-    return saved;
+    const merged = {
+      ...previous,
+      ...saved,
+      activityTitle:
+        saved.activityTitle ||
+        previous?.activityTitle ||
+        activityName(saved.activityId) ||
+        ''
+    };
+
+    todoTasks = todoTasks.filter(t => t.id !== merged.id);
+    todoTasks.push(merged);
+    return merged;
   }
 
   function openActivityModal(id = '') {

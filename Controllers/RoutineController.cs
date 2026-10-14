@@ -312,9 +312,21 @@ public class RoutineController(AppDbContext db) : ControllerBase
         var normalized = NormalizeTaskRequest(request);
         if (normalized.Error is not null) return BadRequest(new { message = normalized.Error });
 
-        if (normalized.ActivityId.HasValue &&
-            !await db.Activities.AnyAsync(x => x.Id == normalized.ActivityId.Value && x.UserId == UserId && x.ArchivedAt == null))
-            return BadRequest(new { message = "A rotina vinculada não existe." });
+        if (normalized.ActivityId.HasValue)
+        {
+            var targetActivity = await db.Activities.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == normalized.ActivityId.Value && x.UserId == UserId);
+
+            if (targetActivity is null)
+                return BadRequest(new { message = "A rotina vinculada não existe." });
+
+            var keepingExistingArchivedLink =
+                item.ActivityId == normalized.ActivityId.Value &&
+                targetActivity.ArchivedAt is not null;
+
+            if (targetActivity.ArchivedAt is not null && !keepingExistingArchivedLink)
+                return BadRequest(new { message = "Não é possível vincular uma tarefa a uma rotina arquivada." });
+        }
 
         var titleLower = normalized.Title.ToLower();
         var duplicate = await db.RoutineTasks.AsNoTracking().AnyAsync(x =>

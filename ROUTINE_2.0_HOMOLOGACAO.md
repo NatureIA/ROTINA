@@ -169,3 +169,27 @@ As mudanças de banco da 2.0 foram construídas de forma aditiva para permitir e
 A ROUTINE 2.0 não remove tabelas nem colunas da 1.0.
 
 Rotinas arquivadas na 2.0 permanecem fisicamente no banco com `Active = false`. Se houver rollback para a interface 1.0, elas podem aparecer como pausadas, porque a 1.0 não conhece o conceito de arquivamento. Isso não representa perda de dados.
+
+
+## Proteções do deploy da ROUTINE 2.0
+
+Quando a ROUTINE 2.0 for integrada à `main`, o workflow de produção executará antes do WebDeploy:
+
+1. validação do JavaScript, PWA, Service Worker e manifest;
+2. validação estrutural da interface;
+3. build Release;
+4. testes automatizados das regras de negócio;
+5. publish Windows x86;
+6. armazenamento do pacote publicado por 30 dias no GitHub Actions.
+
+Depois do WebDeploy, o workflow verifica automaticamente:
+
+`https://routine.runasp.net/health`
+
+O deploy só ficará verde quando a resposta confirmar:
+
+- `version: 2.0`
+- `status: ok`
+- `database: ready`
+
+A branch `routine-1.0` e o commit `2b1c7beebde588fb13353fa872034904eaeb1f9c` continuam sendo o ponto oficial de rollback.

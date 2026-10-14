@@ -224,6 +224,48 @@ public class RoutineControllerTests
     }
 
     [Fact]
+    public async Task UpdateTask_AllowsKeepingArchivedActivityLink()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var archived = MakeActivity(userId, "Projeto antigo", DateTime.UtcNow.AddDays(-1));
+        var task = new RoutineTask
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            ActivityId = archived.Id,
+            Title = "Revisar documento",
+            DueDate = "2026-10-14",
+            DueTime = "15:00",
+            Status = "pending",
+            Priority = "medium"
+        };
+
+        db.Activities.Add(archived);
+        db.RoutineTasks.Add(task);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var request = new RoutineTaskRequest(
+            "Revisar documento atualizado",
+            archived.Id,
+            "Projeto histórico",
+            "2026-10-14",
+            "15:00",
+            "pending",
+            "high",
+            "Observação atualizada",
+            null);
+
+        var result = await controller.UpdateTask(task.Id, request);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(archived.Id, task.ActivityId);
+        Assert.Equal("Revisar documento atualizado", task.Title);
+        Assert.Equal("high", task.Priority);
+    }
+
+    [Fact]
     public async Task SetExecution_ArchivedActivityIsRejected()
     {
         await using var db = CreateDb();
