@@ -21,7 +21,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
     [HttpGet("activities")]
     public async Task<IActionResult> Activities() =>
         Ok(await db.Activities.AsNoTracking()
-            .Where(x => x.UserId == UserId)
+            .Where(x => x.UserId == UserId && x.ArchivedAt == null)
             .OrderBy(x => x.Time)
             .ToListAsync());
 
@@ -69,7 +69,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
     [HttpPut("activities/{id:guid}")]
     public async Task<IActionResult> UpdateActivity(Guid id, Activity input)
     {
-        var item = await db.Activities.FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId);
+        var item = await db.Activities.FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId && x.ArchivedAt == null);
         if (item is null) return NotFound();
 
         NormalizeActivity(input);
@@ -99,10 +99,13 @@ public class RoutineController(AppDbContext db) : ControllerBase
     [HttpDelete("activities/{id:guid}")]
     public async Task<IActionResult> DeleteActivity(Guid id)
     {
-        var item = await db.Activities.FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId);
+        var item = await db.Activities.FirstOrDefaultAsync(
+            x => x.Id == id && x.UserId == UserId && x.ArchivedAt == null);
         if (item is null) return NotFound();
 
-        db.Activities.Remove(item);
+        item.Active = false;
+        item.ArchivedAt = DateTime.UtcNow;
+
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -119,6 +122,18 @@ public class RoutineController(AppDbContext db) : ControllerBase
                 string.Compare(x.Date, end) <= 0)
             .OrderByDescending(x => x.Date)
             .ThenByDescending(x => x.UpdatedAt)
+            .Select(x => new
+            {
+                x.Id,
+                x.UserId,
+                x.ActivityId,
+                x.Date,
+                x.Status,
+                x.UpdatedAt,
+                ActivityTitle = x.Activity != null ? x.Activity.Title : null,
+                ActivityCategory = x.Activity != null ? x.Activity.Category : null,
+                ActivityTime = x.Activity != null ? x.Activity.Time : null
+            })
             .ToListAsync());
     }
 
@@ -129,7 +144,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
             !ValidExecutionStatuses.Contains(request.Status))
             return BadRequest(new { message = "Execução inválida." });
 
-        if (!await db.Activities.AnyAsync(x => x.Id == activityId && x.UserId == UserId))
+        if (!await db.Activities.AnyAsync(x => x.Id == activityId && x.UserId == UserId && x.ArchivedAt == null))
             return NotFound();
 
         var item = await db.Executions.FirstOrDefaultAsync(
@@ -173,7 +188,6 @@ public class RoutineController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> Tasks([FromQuery] Guid? activityId = null)
     {
         var query = db.RoutineTasks.AsNoTracking()
-            .Include(x => x.Checklist)
             .Where(x => x.UserId == UserId);
 
         if (activityId.HasValue)
@@ -184,10 +198,39 @@ public class RoutineController(AppDbContext db) : ControllerBase
             .ThenBy(x => x.DueDate)
             .ThenBy(x => x.DueTime)
             .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new
+            {
+                x.Id,
+                x.UserId,
+                x.ActivityId,
+                x.Title,
+                x.Project,
+                x.DueDate,
+                x.DueTime,
+                x.Status,
+                x.Priority,
+                x.Notes,
+                x.ClientRequestId,
+                x.CompletedAt,
+                x.CreatedAt,
+                x.UpdatedAt,
+                ActivityTitle = x.Activity != null ? x.Activity.Title : null,
+                Checklist = x.Checklist
+                    .OrderBy(c => c.SortOrder)
+                    .ThenBy(c => c.CreatedAt)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.TaskId,
+                        c.Title,
+                        c.Done,
+                        c.SortOrder,
+                        c.CreatedAt,
+                        c.UpdatedAt
+                    })
+                    .ToList()
+            })
             .ToListAsync();
-
-        foreach (var item in items)
-            item.Checklist = item.Checklist.OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAt).ToList();
 
         return Ok(items);
     }
@@ -199,7 +242,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
         if (normalized.Error is not null) return BadRequest(new { message = normalized.Error });
 
         if (normalized.ActivityId.HasValue &&
-            !await db.Activities.AnyAsync(x => x.Id == normalized.ActivityId.Value && x.UserId == UserId))
+            !await db.Activities.AnyAsync(x => x.Id == normalized.ActivityId.Value && x.UserId == UserId && x.ArchivedAt == null))
             return BadRequest(new { message = "A rotina vinculada não existe." });
 
         if (!string.IsNullOrWhiteSpace(normalized.ClientRequestId))
@@ -269,7 +312,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
         if (normalized.Error is not null) return BadRequest(new { message = normalized.Error });
 
         if (normalized.ActivityId.HasValue &&
-            !await db.Activities.AnyAsync(x => x.Id == normalized.ActivityId.Value && x.UserId == UserId))
+            !await db.Activities.AnyAsync(x => x.Id == normalized.ActivityId.Value && x.UserId == UserId && x.ArchivedAt == null))
             return BadRequest(new { message = "A rotina vinculada não existe." });
 
         var titleLower = normalized.Title.ToLower();
@@ -403,6 +446,7 @@ public class RoutineController(AppDbContext db) : ControllerBase
         var title = input.Title.ToLower();
         return await db.Activities.AsNoTracking().AnyAsync(x =>
             x.UserId == UserId &&
+            x.ArchivedAt == null &&
             (!ignoreId.HasValue || x.Id != ignoreId.Value) &&
             x.Active &&
             x.Title.ToLower() == title &&

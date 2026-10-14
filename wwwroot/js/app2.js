@@ -187,6 +187,10 @@
     return activities.find(a => a.id === id)?.title || '';
   }
 
+  function taskActivityName(task) {
+    return activityName(task?.activityId) || task?.activityTitle || '';
+  }
+
   function renderBars(selector, n, ref, dates = false) {
     const arr = [];
     for (let i = n - 1; i >= 0; i--) arr.push(addDays(ref, -i));
@@ -369,12 +373,15 @@
     });
     $$('[data-delete-activity]').forEach(b => b.onclick = async () => {
       const id = b.dataset.deleteActivity;
-      if (!confirm('Excluir esta rotina? As tarefas vinculadas serão mantidas no To Do sem vínculo.')) return;
+      if (!confirm('Arquivar esta rotina? Ela sairá da sua rotina ativa, mas o histórico e as tarefas serão preservados.')) return;
+      const archived = activities.find(x => x.id === id);
       await api('/api/activities/' + id, { method:'DELETE' });
+      todoTasks.forEach(t => {
+        if (t.activityId === id && !t.activityTitle) t.activityTitle = archived?.title || '';
+      });
       activities = activities.filter(x => x.id !== id);
-      todoTasks.forEach(t => { if (t.activityId === id) t.activityId = null; });
       renderAll();
-      toast('Atividade excluída');
+      toast('Rotina arquivada; histórico preservado');
     });
   }
 
@@ -417,9 +424,9 @@
       const a = activities.find(x => x.id === e.activityId);
       rows.push({
         date:e.date,
-        time:a?.time || '—',
-        title:a?.title || 'Atividade removida',
-        context:a?.category || 'Rotina',
+        time:a?.time || e.activityTime || '—',
+        title:a?.title || e.activityTitle || 'Atividade removida',
+        context:a?.category || e.activityCategory || 'Rotina',
         status:e.status,
         updated:e.updatedAt || e.date
       });
@@ -433,7 +440,7 @@
         date,
         time:t.dueTime || '—',
         title:`Tarefa: ${t.title}`,
-        context:activityName(t.activityId) || t.project || 'To Do',
+        context:taskActivityName(t) || t.project || 'To Do',
         status:t.status,
         updated:t.updatedAt || date
       });
@@ -452,7 +459,7 @@
     if (todoStatus !== 'all' && todoStatus !== 'open' && t.status !== todoStatus) return false;
 
     if (todoSearch) {
-      const hay = `${t.title} ${t.project || ''} ${activityName(t.activityId)}`.toLowerCase();
+      const hay = `${t.title} ${t.project || ''} ${taskActivityName(t)}`.toLowerCase();
       if (!hay.includes(todoSearch.toLowerCase())) return false;
     }
     return true;
@@ -486,7 +493,7 @@
       !!t.dueDate &&
       t.dueDate < today &&
       (!todoActivity || t.activityId === todoActivity) &&
-      (!todoSearch || `${t.title} ${t.project || ''} ${activityName(t.activityId)}`.toLowerCase().includes(todoSearch.toLowerCase()))
+      (!todoSearch || `${t.title} ${t.project || ''} ${taskActivityName(t)}`.toLowerCase().includes(todoSearch.toLowerCase()))
     ).sort(taskSort);
   }
 
@@ -556,7 +563,7 @@
   }
 
   function taskRowHtml(t) {
-    const activity = activityName(t.activityId);
+    const activity = taskActivityName(t);
     const context = activity || t.project || 'Sem rotina';
     const due = t.dueDate
       ? `${fromKey(t.dueDate).toLocaleDateString('pt-BR')}${t.dueTime ? `, ${t.dueTime}` : ''}`

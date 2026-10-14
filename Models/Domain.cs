@@ -32,6 +32,7 @@ public class Activity
     [MaxLength(500)] public string? Notes { get; set; }
     [MaxLength(64)] public string? ClientRequestId { get; set; }
     public bool Active { get; set; } = true;
+    public DateTime? ArchivedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Execution> Executions { get; set; } = new List<Execution>();
     [JsonIgnore] public ICollection<RoutineTask> Tasks { get; set; } = new List<RoutineTask>();
