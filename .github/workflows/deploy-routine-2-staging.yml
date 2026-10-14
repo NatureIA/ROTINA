@@ -1,0 +1,91 @@
+name: Deploy ROUTINE 2.0 to Staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: routine-2-staging
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    if: github.ref == 'refs/heads/routine-2.0'
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard staging credentials
+        shell: pwsh
+        run: |
+          $missing = @()
+
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.STAGING_WEBSITE_NAME }}")) {
+            $missing += "STAGING_WEBSITE_NAME"
+          }
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.STAGING_SERVER_COMPUTER_NAME }}")) {
+            $missing += "STAGING_SERVER_COMPUTER_NAME"
+          }
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.STAGING_SERVER_USERNAME }}")) {
+            $missing += "STAGING_SERVER_USERNAME"
+          }
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.STAGING_SERVER_PASSWORD }}")) {
+            $missing += "STAGING_SERVER_PASSWORD"
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Error ("Staging ainda não configurado. Secrets ausentes: " + ($missing -join ", "))
+            exit 1
+          }
+
+          if ("${{ secrets.STAGING_WEBSITE_NAME }}" -eq "${{ secrets.WEBSITE_NAME }}") {
+            Write-Error "Proteção acionada: o website de staging não pode ser o mesmo website da produção."
+            exit 1
+          }
+
+          Write-Host "Credenciais de staging separadas da produção: OK"
+
+      - name: Validate frontend
+        shell: pwsh
+        run: |
+          node --check wwwroot/js/app2.js
+          node --check wwwroot/js/pwa.js
+          node --check wwwroot/service-worker.js
+          node --check scripts/validate-ui.js
+          node scripts/validate-ui.js
+          node -e "JSON.parse(require('fs').readFileSync('wwwroot/manifest.webmanifest','utf8')); console.log('manifest ok')"
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0
+
+      - name: Restore
+        run: dotnet restore Routine.csproj
+
+      - name: Build
+        run: dotnet build Routine.csproj --configuration Release --no-restore
+
+      - name: Run business rule tests
+        run: dotnet test Routine.Tests/Routine.Tests.csproj --configuration Release
+
+      - name: Publish staging package
+        run: dotnet publish Routine.csproj --configuration Release --output ./publish-staging --runtime win-x86 --self-contained false
+
+      - name: Save staging package
+        uses: actions/upload-artifact@v4
+        with:
+          name: routine-2-staging-${{ github.sha }}
+          path: ./publish-staging
+          retention-days: 7
+
+      - name: Deploy to staging via WebDeploy
+        uses: rasmusbuchholdt/simply-web-deploy@2.1.0
+        with:
+          website-name: ${{ secrets.STAGING_WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.STAGING_SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.STAGING_SERVER_USERNAME }}
+          server-password: ${{ secrets.STAGING_SERVER_PASSWORD }}

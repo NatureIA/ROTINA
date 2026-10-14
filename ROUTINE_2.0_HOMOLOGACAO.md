@@ -107,3 +107,34 @@ Se houver problema após publicação:
 4. Não apagar dados da 2.0 durante o rollback.
 
 Observação: rotinas arquivadas na 2.0 permanecem fisicamente no banco com `Active = false`. Em um rollback para a interface 1.0 elas podem aparecer como pausadas em "Minha rotina", pois a 1.0 não conhece o conceito de arquivamento. Isso não provoca perda de dados.
+
+
+## Ambiente de staging
+
+Existe um workflow separado chamado **Deploy ROUTINE 2.0 to Staging**.
+
+Regras de segurança:
+
+- execução somente manual;
+- só executa quando selecionada a branch `routine-2.0`;
+- usa exclusivamente secrets com prefixo `STAGING_`;
+- bloqueia o deploy se `STAGING_WEBSITE_NAME` for igual ao `WEBSITE_NAME` da produção;
+- executa validação do frontend, testes .NET e publish antes do WebDeploy;
+- salva o pacote publicado por 7 dias como artifact de homologação;
+- não altera o workflow de produção da `main`.
+
+Secrets necessários quando o site de homologação for criado:
+
+- `STAGING_WEBSITE_NAME`
+- `STAGING_SERVER_COMPUTER_NAME`
+- `STAGING_SERVER_USERNAME`
+- `STAGING_SERVER_PASSWORD`
+
+O site de staging também deve possuir suas próprias configurações de ambiente:
+
+- `ConnectionStrings__DefaultConnection` apontando para banco de homologação;
+- `Jwt__Key`;
+- `SeedUsers__User1Login` / `SeedUsers__User1Password`;
+- `SeedUsers__User2Login` / `SeedUsers__User2Password`.
+
+O banco de homologação deve ser separado do banco de produção. Nunca usar `db71205` para testes destrutivos ou de homologação da 2.0.
