@@ -442,22 +442,289 @@
     }).join('') : '<div class="empty">Nenhum hábito configurado.</div>';
   }
 
-  function renderPerformance() {
-    const ref = new Date();
-    $('#avg7').textContent = avg(7, ref) + '%';
-    $('#avg30').textContent = avg(30, ref) + '%';
-    $('#bestStreak').textContent = bestStreak();
+  function performancePeriodStats(ref, count = 30, endOffset = 0) {
+    const daysInPeriod = [];
+    let totalActivities = 0;
+    let completedActivities = 0;
+    let plannedDays = 0;
+    let consistentDays = 0;
+    let adherenceSum = 0;
 
-    let total = 0, completed = 0;
-    for (let i = 29; i >= 0; i--) {
+    for (let i = count - 1 + endOffset; i >= endOffset; i--) {
       const d = addDays(ref, -i);
-      dayActivities(d).forEach(a => {
-        total++;
-        if (activityProgress(a, d) === 100) completed++;
+      const list = dayActivities(d);
+      const value = list.length ? adherence(d) : null;
+
+      if (list.length) {
+        plannedDays++;
+        adherenceSum += value;
+        if (value >= 70) consistentDays++;
+
+        list.forEach(a => {
+          totalActivities++;
+          if (activityProgress(a, d) === 100) completedActivities++;
+        });
+      }
+
+      daysInPeriod.push({
+        date:d,
+        value,
+        status:!list.length ? 'none' : value === 100 ? 'perfect' : value > 0 ? 'partial' : 'low'
       });
     }
-    $('#completion30').textContent = (total ? Math.round(completed / total * 100) : 0) + '%';
-    renderBars('#performanceChart', 14, ref, true);
+
+    return {
+      adherence:plannedDays ? Math.round(adherenceSum / plannedDays) : 0,
+      totalActivities,
+      completedActivities,
+      plannedDays,
+      consistentDays,
+      days:daysInPeriod
+    };
+  }
+
+  function signedPercent(value) {
+    return `${value > 0 ? '+' : ''}${value}%`;
+  }
+
+  function performanceMotivation(stats, evolution, sequence) {
+    const record = bestStreak();
+
+    if (sequence > 0 && sequence === record) {
+      return {
+        title:'Seu melhor ritmo até agora.',
+        detail:`${sequence} dia${sequence === 1 ? '' : 's'} de sequência — novo recorde pessoal.`
+      };
+    }
+
+    if (stats.adherence >= 90) {
+      return {
+        title:'Um ritmo excelente.',
+        detail:`Você cumpriu ${stats.adherence}% do que planejou nos últimos 30 dias.`
+      };
+    }
+
+    if (evolution > 0) {
+      return {
+        title:'Seu ritmo está evoluindo.',
+        detail:`${signedPercent(evolution)} em relação aos 30 dias anteriores.`
+      };
+    }
+
+    if (stats.adherence >= 70) {
+      return {
+        title:'Você está mantendo um bom ritmo.',
+        detail:`${stats.consistentDays} de ${stats.plannedDays || 0} dias planejados foram consistentes.`
+      };
+    }
+
+    return {
+      title:'Cada dia conta.',
+      detail:'Retome o ritmo aos poucos e mantenha o foco no que você planejou.'
+    };
+  }
+
+  function renderPerformance() {
+    const ref = new Date();
+    const current = performancePeriodStats(ref, 30, 0);
+    const previous = performancePeriodStats(ref, 30, 30);
+    const evolution = current.adherence - previous.adherence;
+    const sequence = streak(ref);
+    const motivation = performanceMotivation(current, evolution, sequence);
+
+    $('#perfAdherence').textContent = current.adherence + '%';
+    $('#perfRingValue').textContent = current.adherence + '%';
+    $('#perfRing').style.setProperty('--value', current.adherence);
+    $('#perfAdherenceText').textContent = current.plannedDays
+      ? `Você cumpriu ${current.adherence}% do que planejou nos últimos 30 dias.`
+      : 'Comece a registrar sua rotina para acompanhar sua aderência.';
+
+    const evolutionChip = $('#perfEvolutionChip');
+    evolutionChip.textContent = signedPercent(evolution) + ' vs. período anterior';
+    evolutionChip.classList.toggle('positive', evolution > 0);
+    evolutionChip.classList.toggle('negative', evolution < 0);
+    evolutionChip.classList.toggle('neutral', evolution === 0);
+
+    $('#perfCompleted').textContent = `${current.completedActivities}/${current.totalActivities}`;
+    $('#perfSequence').textContent = `${sequence} dia${sequence === 1 ? '' : 's'}`;
+    $('#perfConsistency').textContent = `${current.consistentDays}/${current.plannedDays}`;
+    $('#perfEvolutionMobile').textContent = signedPercent(evolution);
+    $('#perfEvolutionMobile').classList.toggle('positive', evolution > 0);
+    $('#perfEvolutionMobile').classList.toggle('negative', evolution < 0);
+
+    $('#perfMotivation').textContent = motivation.title;
+    $('#perfMotivationDetail').textContent = motivation.detail;
+
+    $('#perfMonthStrip').innerHTML = current.days.map(day => {
+      const label = day.value === null
+        ? `${short(day.date)} · sem atividade planejada`
+        : `${short(day.date)} · ${day.value}% de aderência`;
+
+      return `<div class="performance-day" title="${esc(label)}">
+        <span class="${day.status}"></span>
+        <small>${day.date.getDate()}</small>
+      </div>`;
+    }).join('');
+  }
+
+  function roundRectPath(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  }
+
+  function performanceShareBlob(stats, evolution, sequence) {
+    return new Promise(resolve => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1920;
+      const ctx = canvas.getContext('2d');
+
+      const bg = ctx.createLinearGradient(0, 0, 1080, 1920);
+      bg.addColorStop(0, '#121315');
+      bg.addColorStop(.55, '#0c0d0f');
+      bg.addColorStop(1, '#17110d');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, 1080, 1920);
+
+      ctx.strokeStyle = 'rgba(255,120,23,.28)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-30, 100, 260, -.8, 1.1);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(1080, 720, 330, 2.1, 4.7);
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f5f5f5';
+      ctx.font = '600 48px Arial';
+      ctx.fillText('R O U T I N E', 540, 120);
+
+      ctx.font = '800 76px Arial';
+      ctx.fillStyle = '#f5f5f5';
+      ctx.fillText('Meu', 355, 245);
+      ctx.fillStyle = '#ff7a1a';
+      ctx.fillText('desempenho', 680, 245);
+
+      const cx = 540, cy = 650, radius = 225;
+      ctx.lineWidth = 34;
+      ctx.strokeStyle = '#292b2f';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
+      ctx.stroke();
+
+      const ring = ctx.createLinearGradient(330, 430, 760, 850);
+      ring.addColorStop(0, '#ffb14f');
+      ring.addColorStop(1, '#ef5e00');
+      ctx.strokeStyle = ring;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (stats.adherence / 100));
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 145px Arial';
+      ctx.fillText(stats.adherence + '%', cx, cy + 25);
+      ctx.font = '500 34px Arial';
+      ctx.fillStyle = '#c4c6ca';
+      ctx.fillText('ADERÊNCIA', cx, cy + 95);
+
+      const cards = [
+        {x:70,y:980,w:450,h:220,value:`${stats.completedActivities} / ${stats.totalActivities}`,label:'ATIVIDADES CONCLUÍDAS',accent:'#ff7a1a'},
+        {x:560,y:980,w:450,h:220,value:`${sequence}`,label:'DIAS DE SEQUÊNCIA',accent:'#ff7a1a'},
+        {x:70,y:1235,w:450,h:220,value:signedPercent(evolution),label:'DE EVOLUÇÃO',accent:'#43d889'},
+        {x:560,y:1235,w:450,h:220,value:`${stats.consistentDays} / ${stats.plannedDays}`,label:'DIAS CONSISTENTES',accent:'#ff7a1a'}
+      ];
+
+      cards.forEach(card => {
+        roundRectPath(ctx, card.x, card.y, card.w, card.h, 28);
+        ctx.fillStyle = 'rgba(28,29,32,.94)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.14)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = card.accent;
+        ctx.beginPath();
+        ctx.arc(card.x + 68, card.y + 72, 26, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 58px Arial';
+        ctx.fillText(card.value, card.x + 125, card.y + 100);
+        ctx.fillStyle = '#aeb1b6';
+        ctx.font = '500 25px Arial';
+        ctx.fillText(card.label, card.x + 125, card.y + 150);
+      });
+
+      roundRectPath(ctx, 70, 1510, 940, 230, 30);
+      const callout = ctx.createLinearGradient(70, 1510, 1010, 1740);
+      callout.addColorStop(0, '#1d1b19');
+      callout.addColorStop(1, '#32190d');
+      ctx.fillStyle = callout;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,120,23,.55)';
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 52px Arial';
+      ctx.fillText('Meu ritmo, meus resultados.', 540, 1605);
+      ctx.fillStyle = '#ff7a1a';
+      ctx.font = '700 38px Arial';
+      ctx.fillText(`${stats.adherence}% de aderência nos últimos 30 dias`, 540, 1670);
+
+      const month = new Intl.DateTimeFormat('pt-BR', { month:'long', year:'numeric' }).format(new Date()).toUpperCase();
+      ctx.fillStyle = '#8e9299';
+      ctx.font = '500 28px Arial';
+      ctx.fillText(month, 540, 1835);
+
+      canvas.toBlob(blob => resolve(blob), 'image/png', 0.96);
+    });
+  }
+
+  async function sharePerformanceResults() {
+    const ref = new Date();
+    const current = performancePeriodStats(ref, 30, 0);
+    const previous = performancePeriodStats(ref, 30, 30);
+    const evolution = current.adherence - previous.adherence;
+    const sequence = streak(ref);
+    const blob = await performanceShareBlob(current, evolution, sequence);
+    if (!blob) return;
+
+    const filename = `routine-desempenho-${key(ref)}.png`;
+    const file = new File([blob], filename, { type:'image/png' });
+
+    try {
+      if (navigator.canShare?.({ files:[file] })) {
+        await navigator.share({
+          title:'Meu desempenho no ROUTINE',
+          text:`${current.adherence}% de aderência · ${current.completedActivities}/${current.totalActivities} atividades concluídas · ${sequence} dias de sequência`,
+          files:[file]
+        });
+        return;
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast('Card de desempenho gerado');
   }
 
   function renderHistory() {
@@ -963,7 +1230,7 @@
       routine:['ESTRUTURA','Minha rotina','Organize seus blocos de rotina e as tarefas ligadas a cada um.'],
       todo:['EXECUÇÃO','To Do','Todas as tarefas da sua rotina em um único lugar.'],
       habits:['CONSISTÊNCIA','Hábitos','Veja o que está se tornando constante.'],
-      performance:['INDICADORES','Desempenho','Acompanhe a evolução da sua aderência.'],
+      performance:['INDICADORES','Desempenho','Seu progresso, em uma visão simples e clara.'],
       history:['RASTREABILIDADE','Histórico','Veja o que foi concluído, iniciado ou não realizado.']
     }[view];
 
@@ -972,15 +1239,20 @@
     $('#pageSubtitle').textContent = meta[2];
 
     const action = $('#headerAction');
+    action.hidden = view === 'performance';
+
     if (view === 'todo') {
+      action.hidden = false;
       action.textContent = '+ Nova tarefa';
       action.onclick = () => openTaskModal('', todoActivity);
-    } else {
+    } else if (view !== 'performance') {
+      action.hidden = false;
       action.textContent = '+ Nova atividade';
       action.onclick = () => openActivityModal();
     }
 
     if (view === 'todo') renderTodo();
+    if (view === 'performance') renderPerformance();
   }
 
   function renderAll() {
@@ -1094,6 +1366,8 @@
     todoStatus = 'open';
     renderTodo();
   };
+
+  $('#sharePerformance').onclick = sharePerformanceResults;
 
   $('#prevDay').onclick = () => { selected = addDays(selected, -1); renderToday(); };
   $('#nextDay').onclick = () => { selected = addDays(selected, 1); renderToday(); };
