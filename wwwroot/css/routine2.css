@@ -32,3 +32,38 @@
 .todo-context{margin-bottom:13px;padding:18px;border:1px solid #58351f;border-radius:18px;background:radial-gradient(circle at 12% 0,rgba(255,120,23,.11),transparent 42%),linear-gradient(145deg,#211d1a,#17181b);box-shadow:var(--shadow);display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end}
 .todo-context[hidden]{display:none!important}.todo-context-main{min-width:0}.todo-context-title{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.todo-context-title h2{margin:0;font-size:21px}.todo-context-title p{margin:6px 0 0;color:var(--muted);font-size:10px}.todo-context-progress{margin-top:16px;display:grid;gap:7px}.todo-context-progress>div:first-child{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#9b9fa5}.todo-context-progress strong{color:var(--orange2)}.todo-context-clear{border:0;background:transparent;color:#a8abb0;font-size:10px;text-decoration:underline;cursor:pointer;padding:7px}
 @media(max-width:760px){.todo-context{grid-template-columns:1fr;align-items:stretch}.todo-context-title{flex-direction:column}.todo-context-title .btn{width:100%}.todo-context-clear{text-align:left;padding-left:0}}
+
+/* Legibilidade ROUTINE 2.0 */
+header p,.panelhead p{font-size:12px;line-height:1.5}
+.panelhead h2{font-size:16px}
+.eyebrow{font-size:10px}
+.mini{font-size:10px;padding:7px 9px}
+.meta{font-size:10.5px}
+.routinecard strong,.habitcard strong{font-size:13px}
+.routinecard p,.habitcard small{font-size:10.5px;line-height:1.45}
+.task strong{font-size:12px}
+th,td{font-size:10.5px;padding:11px 8px}
+th{font-size:9.5px}
+.kpis span,.todo-kpis span{font-size:10px}
+.kpis small,.todo-kpis small{font-size:10px;line-height:1.4}
+.chip{font-size:10px}
+.todo-tabs button{font-size:11px}
+.todo-filters input,.todo-filters select{font-size:11px}
+.todo-task-main strong{font-size:12px}
+.todo-task-main span,.todo-due{font-size:10px}
+.task-status{font-size:9px;padding:5px 9px}
+.activity-heading strong{font-size:15px}
+.activity-heading p,.activity-meta{font-size:11px}
+.focus-card>p,.focus-title span{font-size:11.5px}
+.focus-action{font-size:10.5px}
+.drawer-meta-grid strong{font-size:11px}
+.drawer-notes p,.checklist-item span{font-size:11px}
+.checklist-add input{font-size:11px}
+.empty{font-size:11px}
+@media(max-width:700px){
+  nav button{font-size:10px}
+  .kpis strong,.todo-kpis strong{font-size:24px}
+  .panel{padding:15px}
+  .activity-heading strong{font-size:14px}
+  .activity-card-actions .mini{font-size:10px}
+}
