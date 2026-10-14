@@ -78,7 +78,12 @@
 
   function linkedTasks(activityId, d) {
     const k = key(d);
-    return todoTasks.filter(t => t.activityId === activityId && t.dueDate === k);
+    return todoTasks
+      .filter(t => t.activityId === activityId && t.dueDate === k)
+      .sort((a,b) =>
+        String(a.dueTime || '99:99').localeCompare(String(b.dueTime || '99:99')) ||
+        String(a.createdAt || '').localeCompare(String(b.createdAt || ''))
+      );
   }
 
   function activityProgress(a, d) {
@@ -230,10 +235,13 @@
     $('#currentFocus').innerHTML = focusHtml('AGORA', current, selected, true);
     $('#nextFocus').innerHTML = focusHtml(isToday ? 'PRÓXIMO' : 'PRIMEIRO DO DIA', next, selected, false);
 
-    $$('#currentFocus [data-focus-tasks], #nextFocus [data-focus-tasks]').forEach(b => {
+    $('#currentFocus [data-focus-tasks], #nextFocus [data-focus-tasks]').forEach(b => {
       b.onclick = () => openTasksForActivity(b.dataset.focusTasks);
     });
-    $$('#currentFocus [data-focus-done], #nextFocus [data-focus-done]').forEach(b => {
+    $('#currentFocus [data-focus-task], #nextFocus [data-focus-task]').forEach(b => {
+      b.onclick = () => openTaskDrawer(b.dataset.focusTask);
+    });
+    $('#currentFocus [data-focus-done], #nextFocus [data-focus-done]').forEach(b => {
       b.onclick = () => setExecution(b.dataset.focusDone, 'done');
     });
   }
@@ -244,15 +252,24 @@
     }
     const linked = linkedTasks(activity.id, d);
     const progress = activityProgress(activity, d);
-    const action = linked.length
-      ? `<button class="focus-action" data-focus-tasks="${activity.id}">Abrir ${linked.length} tarefa${linked.length === 1 ? '' : 's'}</button>`
-      : progress === 100
-        ? '<span class="focus-done">Concluída</span>'
-        : `<button class="focus-action" data-focus-done="${activity.id}">Concluir atividade</button>`;
+    const nextTask = linked.find(t => ['pending','progress'].includes(t.status)) || null;
+
+    const action = nextTask
+      ? `<button class="focus-action" data-focus-task="${nextTask.id}">Abrir próxima tarefa</button>`
+      : linked.length
+        ? `<button class="focus-action" data-focus-tasks="${activity.id}">Ver tarefas</button>`
+        : progress === 100
+          ? '<span class="focus-done">Concluída</span>'
+          : `<button class="focus-action" data-focus-done="${activity.id}">Concluir atividade</button>`;
+
+    const nextTaskText = nextTask
+      ? `<div class="focus-next-task"><span>Próxima tarefa</span><strong>${esc(nextTask.title)}</strong>${nextTask.dueTime ? `<small>${nextTask.dueTime}</small>` : ''}</div>`
+      : '';
 
     return `<span class="focus-label">${label}</span>
       <div class="focus-title"><strong>${esc(activity.title)}</strong><span>${activity.time} → ${endTimeFor(activity)}</span></div>
       <p>${esc(activity.category)}${linked.length ? ` · ${linked.filter(t => t.status === 'done').length}/${linked.length} tarefas concluídas` : ''}</p>
+      ${nextTaskText}
       <div class="focus-progress"><i style="width:${progress}%"></i></div>
       <div class="focus-bottom"><span>${progress}%</span>${action}</div>`;
   }
@@ -775,7 +792,7 @@
 
   function openTasksForActivity(activityId) {
     todoActivity = activityId;
-    todoScope = 'all';
+    todoScope = key(selected) === todayKey() ? 'today' : 'all';
     todoStatus = 'open';
     todoSearch = '';
     setView('todo');
@@ -802,7 +819,7 @@
     const action = $('#headerAction');
     if (view === 'todo') {
       action.textContent = '+ Nova tarefa';
-      action.onclick = () => openTaskModal();
+      action.onclick = () => openTaskModal('', todoActivity);
     } else {
       action.textContent = '+ Nova atividade';
       action.onclick = () => openActivityModal();
@@ -913,7 +930,7 @@
   $('#cancelActivityModal').onclick = closeActivityModal;
   $('#closeTaskModal').onclick = closeTaskModal;
   $('#cancelTaskModal').onclick = closeTaskModal;
-  $('#newTask').onclick = () => openTaskModal();
+  $('#newTask').onclick = () => openTaskModal('', todoActivity);
 
   $('#prevDay').onclick = () => { selected = addDays(selected, -1); renderToday(); };
   $('#nextDay').onclick = () => { selected = addDays(selected, 1); renderToday(); };

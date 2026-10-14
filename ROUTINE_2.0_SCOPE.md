@@ -36,3 +36,28 @@ Se uma rotina possui tarefas com prazo no dia, o progresso da rotina é:
 Se não possui tarefas no dia, a rotina vale 100% apenas quando marcada como concluída.
 
 A aderência do dia é a média do progresso de todas as rotinas planejadas para aquele dia.
+
+
+## Homologação técnica
+
+A branch `routine-2.0` possui workflow próprio de validação e NÃO faz deploy na produção.
+
+A cada alteração são validados:
+
+- sintaxe do JavaScript principal;
+- sintaxe do PWA e service worker;
+- JSON do manifest;
+- restore .NET;
+- build Release;
+- publish Windows x86, igual ao formato utilizado no MonsterASP.
+
+A produção permanece ligada exclusivamente à `main`.
+
+## Rollback
+
+Baseline oficial ROUTINE 1.0:
+
+- branch: `routine-1.0`
+- commit: `2b1c7beebde588fb13353fa872034904eaeb1f9c`
+
+A branch ROUTINE 1.0 não recebe desenvolvimento da 2.0.

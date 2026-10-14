@@ -10,11 +10,25 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate frontend JavaScript
+        shell: pwsh
+        run: |
+          node --check wwwroot/js/app2.js
+          node --check wwwroot/js/pwa.js
+          node --check wwwroot/service-worker.js
+          node -e "JSON.parse(require('fs').readFileSync('wwwroot/manifest.webmanifest','utf8')); console.log('manifest ok')"
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0
+
       - name: Restore
         run: dotnet restore Routine.csproj
+
       - name: Build
         run: dotnet build Routine.csproj --configuration Release --no-restore
+
+      - name: Publish validation package
+        run: dotnet publish Routine.csproj --configuration Release --output ./publish-check --runtime win-x86 --self-contained false
