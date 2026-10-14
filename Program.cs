@@ -109,48 +109,68 @@ app.Lifetime.ApplicationStarted.Register(() =>
 {
     _ = Task.Run(async () =>
     {
-        try
+        const int maxAttempts = 4;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Database.EnsureCreatedAsync();
-            await EnsureRoutine2SchemaAsync(db);
-
-            var seeds = new[]
+            try
             {
-                new { Login = app.Configuration["SeedUsers:User1Login"] ?? "acesso1", Password = app.Configuration["SeedUsers:User1Password"] ?? "" },
-                new { Login = app.Configuration["SeedUsers:User2Login"] ?? "acesso2", Password = app.Configuration["SeedUsers:User2Password"] ?? "" }
-            };
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+                await EnsureRoutine2SchemaAsync(db);
 
-            foreach (var seed in seeds)
-            {
-                if (string.IsNullOrWhiteSpace(seed.Password)) continue;
-
-                var normalized = seed.Login.Trim().ToLowerInvariant();
-                var existing = await db.Users.FirstOrDefaultAsync(x => x.Login.ToLower() == normalized);
-
-                if (existing is null)
+                var seeds = new[]
                 {
-                    db.Users.Add(new User
+                    new { Login = app.Configuration["SeedUsers:User1Login"] ?? "acesso1", Password = app.Configuration["SeedUsers:User1Password"] ?? "" },
+                    new { Login = app.Configuration["SeedUsers:User2Login"] ?? "acesso2", Password = app.Configuration["SeedUsers:User2Password"] ?? "" }
+                };
+
+                foreach (var seed in seeds)
+                {
+                    if (string.IsNullOrWhiteSpace(seed.Password)) continue;
+
+                    var normalized = seed.Login.Trim().ToLowerInvariant();
+                    var existing = await db.Users.FirstOrDefaultAsync(x => x.Login.ToLower() == normalized);
+
+                    if (existing is null)
                     {
-                        Id = Guid.NewGuid(),
-                        Login = seed.Login.Trim(),
-                        PasswordHash = PasswordTools.Hash(seed.Password)
-                    });
+                        db.Users.Add(new User
+                        {
+                            Id = Guid.NewGuid(),
+                            Login = seed.Login.Trim(),
+                            PasswordHash = PasswordTools.Hash(seed.Password)
+                        });
+                    }
+                    else if (!PasswordTools.Verify(seed.Password, existing.PasswordHash))
+                    {
+                        existing.PasswordHash = PasswordTools.Hash(seed.Password);
+                    }
                 }
-                else if (!PasswordTools.Verify(seed.Password, existing.PasswordHash))
-                {
-                    existing.PasswordHash = PasswordTools.Hash(seed.Password);
-                }
-            }
 
-            await db.SaveChangesAsync();
-            databaseReady.TrySetResult(true);
-        }
-        catch (Exception ex)
-        {
-            app.Logger.LogError(ex, "Falha ao inicializar o banco/usuários/ROUTINE 2.0.");
-            databaseReady.TrySetResult(false);
+                await db.SaveChangesAsync();
+                databaseReady.TrySetResult(true);
+                app.Logger.LogInformation("Banco ROUTINE 2.0 pronto após tentativa {Attempt}.", attempt);
+                return;
+            }
+            catch (Exception ex)
+            {
+                if (attempt >= maxAttempts)
+                {
+                    app.Logger.LogError(ex, "Falha ao inicializar o banco/usuários/ROUTINE 2.0 após {Attempts} tentativas.", maxAttempts);
+                    databaseReady.TrySetResult(false);
+                    return;
+                }
+
+                var delay = TimeSpan.FromSeconds(attempt * 2);
+                app.Logger.LogWarning(
+                    ex,
+                    "Banco ROUTINE 2.0 ainda indisponível. Tentativa {Attempt}/{MaxAttempts}; nova tentativa em {DelaySeconds}s.",
+                    attempt,
+                    maxAttempts,
+                    delay.TotalSeconds);
+                await Task.Delay(delay);
+            }
         }
     });
 });
