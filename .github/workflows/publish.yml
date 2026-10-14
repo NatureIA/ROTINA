@@ -1,25 +1,58 @@
-name: Build, publish and deploy to MonsterASP.NET
+name: Build, test, publish and deploy to MonsterASP.NET
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: routine-production
+  cancel-in-progress: false
+
 jobs:
-  build_and_deploy:
+  build_test_deploy:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate frontend
+        shell: pwsh
+        run: |
+          node --check wwwroot/js/app2.js
+          node --check wwwroot/js/pwa.js
+          node --check wwwroot/service-worker.js
+          node --check scripts/validate-ui.js
+          node scripts/validate-ui.js
+          node -e "JSON.parse(require('fs').readFileSync('wwwroot/manifest.webmanifest','utf8')); console.log('manifest ok')"
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0
+
       - name: Restore
         run: dotnet restore Routine.csproj
+
       - name: Build
         run: dotnet build Routine.csproj --configuration Release --no-restore
+
+      - name: Run business rule tests
+        run: dotnet test Routine.Tests/Routine.Tests.csproj --configuration Release
+
       - name: Publish
         run: dotnet publish Routine.csproj --configuration Release --output ./publish --runtime win-x86 --self-contained false
+
+      - name: Save production package
+        uses: actions/upload-artifact@v4
+        with:
+          name: routine-production-${{ github.sha }}
+          path: ./publish
+          retention-days: 30
+
       - name: Deploy to MonsterASP.NET via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
@@ -27,3 +60,32 @@ jobs:
           server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
           server-username: ${{ secrets.SERVER_USERNAME }}
           server-password: ${{ secrets.SERVER_PASSWORD }}
+
+      - name: Verify production health
+        shell: pwsh
+        run: |
+          $healthUrl = "https://routine.runasp.net/health"
+          $maxAttempts = 18
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            try {
+              $health = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 15
+
+              if ($health.version -eq "2.0" -and
+                  $health.status -eq "ok" -and
+                  $health.database -eq "ready") {
+                Write-Host "ROUTINE 2.0 em produção e saudável."
+                exit 0
+              }
+
+              Write-Host "Tentativa ${attempt}/${maxAttempts}: status=$($health.status), database=$($health.database), version=$($health.version), step=$($health.databaseStep), errorType=$($health.databaseErrorType), errorNumber=$($health.databaseErrorNumber)"
+            }
+            catch {
+              Write-Host "Tentativa ${attempt}/${maxAttempts}: aplicação ainda reiniciando."
+            }
+
+            Start-Sleep -Seconds 5
+          }
+
+          Write-Error "A produção não atingiu estado saudável após o deploy."
+          exit 1
