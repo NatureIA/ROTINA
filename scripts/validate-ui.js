@@ -9,6 +9,8 @@ function fail(message) {
 }
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
+const dynamicIds = [...js.matchAll(/\bid=["']([A-Za-z0-9_-]+)["']/g)].map(match => match[1]);
+const knownIds = [...new Set([...ids, ...dynamicIds])];
 const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
 
 if (duplicates.length) {
@@ -20,7 +22,7 @@ const staticIdRefs = [
   ...js.matchAll(/\$\$\('#([A-Za-z0-9_-]+)'\)/g)
 ].map(match => match[1]);
 
-const missingIds = [...new Set(staticIdRefs.filter(id => !ids.includes(id)))];
+const missingIds = [...new Set(staticIdRefs.filter(id => !knownIds.includes(id)))];
 
 if (missingIds.length) {
   fail('IDs referenciados no app2.js mas ausentes no index.html: ' + missingIds.join(', '));
