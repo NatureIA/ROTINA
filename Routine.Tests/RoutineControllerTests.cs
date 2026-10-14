@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Routine.Controllers;
 using Routine.Data;
 using Routine.Models;
+using Xunit;
 
 namespace Routine.Tests;
 
