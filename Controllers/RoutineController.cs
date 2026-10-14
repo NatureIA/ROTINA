@@ -387,6 +387,13 @@ public class RoutineController(AppDbContext db) : ControllerBase
         var item = await db.RoutineTasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId);
         if (item is null) return NotFound();
 
+        var checklist = await db.ChecklistItems
+            .Where(x => x.TaskId == id)
+            .ToListAsync();
+
+        if (checklist.Count > 0)
+            db.ChecklistItems.RemoveRange(checklist);
+
         db.RoutineTasks.Remove(item);
         await db.SaveChangesAsync();
         return NoContent();

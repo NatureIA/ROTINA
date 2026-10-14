@@ -284,6 +284,38 @@ public class RoutineControllerTests
         Assert.Empty(await db.Executions.ToListAsync());
     }
 
+    [Fact]
+    public async Task DeleteTask_RemovesChecklistItemsExplicitly()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var task = new RoutineTask
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Title = "Tarefa com checklist",
+            Status = "pending",
+            Priority = "medium"
+        };
+        db.RoutineTasks.Add(task);
+        db.ChecklistItems.Add(new TaskChecklistItem
+        {
+            Id = Guid.NewGuid(),
+            TaskId = task.Id,
+            Title = "Item",
+            Done = false,
+            SortOrder = 0
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var result = await controller.DeleteTask(task.Id);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Empty(await db.RoutineTasks.ToListAsync());
+        Assert.Empty(await db.ChecklistItems.ToListAsync());
+    }
+
     private static AppDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

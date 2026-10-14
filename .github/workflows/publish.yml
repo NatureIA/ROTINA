@@ -78,10 +78,10 @@ jobs:
                 exit 0
               }
 
-              Write-Host "Tentativa $attempt/$maxAttempts: status=$($health.status), database=$($health.database), version=$($health.version)"
+              Write-Host "Tentativa ${attempt}/${maxAttempts}: status=$($health.status), database=$($health.database), version=$($health.version), step=$($health.databaseStep), errorType=$($health.databaseErrorType), errorNumber=$($health.databaseErrorNumber)"
             }
             catch {
-              Write-Host "Tentativa $attempt/$maxAttempts: aplicação ainda reiniciando."
+              Write-Host "Tentativa ${attempt}/${maxAttempts}: aplicação ainda reiniciando."
             }
 
             Start-Sleep -Seconds 5
