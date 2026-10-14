@@ -847,9 +847,8 @@
       ...saved,
       activityTitle:
         saved.activityTitle ||
-        previous?.activityTitle ||
         activityName(saved.activityId) ||
-        ''
+        (saved.activityId === previous?.activityId ? previous?.activityTitle || '' : '')
     };
 
     todoTasks = todoTasks.filter(t => t.id !== merged.id);
