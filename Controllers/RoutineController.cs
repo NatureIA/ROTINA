@@ -448,7 +448,6 @@ public class RoutineController(AppDbContext db) : ControllerBase
             x.UserId == UserId &&
             x.ArchivedAt == null &&
             (!ignoreId.HasValue || x.Id != ignoreId.Value) &&
-            x.Active &&
             x.Title.ToLower() == title &&
             x.Time == input.Time &&
             x.DurationMinutes == input.DurationMinutes &&

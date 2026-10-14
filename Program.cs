@@ -37,6 +37,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+var databaseReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
 app.UseDefaultFiles(new DefaultFilesOptions { DefaultFileNames = new List<string> { "login.html" } });
 
 var staticContentTypes = new FileExtensionContentTypeProvider();
@@ -56,10 +58,47 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        bool ready;
+        try
+        {
+            ready = await databaseReady.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        catch (TimeoutException)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsJsonAsync(new { message = "ROUTINE está finalizando a inicialização. Tente novamente em instantes." });
+            return;
+        }
+
+        if (!ready)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsJsonAsync(new { message = "Banco de dados temporariamente indisponível." });
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "ROUTINE", version = "2.0" }));
+app.MapGet("/health", () =>
+{
+    var ready = databaseReady.Task.IsCompletedSuccessfully && databaseReady.Task.Result;
+    return Results.Ok(new
+    {
+        status = ready ? "ok" : "initializing",
+        app = "ROUTINE",
+        version = "2.0",
+        database = ready ? "ready" : "waiting"
+    });
+});
 app.MapControllers();
 app.MapFallbackToFile("login.html");
 
@@ -103,10 +142,12 @@ app.Lifetime.ApplicationStarted.Register(() =>
             }
 
             await db.SaveChangesAsync();
+            databaseReady.TrySetResult(true);
         }
         catch (Exception ex)
         {
             app.Logger.LogError(ex, "Falha ao inicializar o banco/usuários/ROUTINE 2.0.");
+            databaseReady.TrySetResult(false);
         }
     });
 });
