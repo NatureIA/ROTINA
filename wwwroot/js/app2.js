@@ -269,13 +269,16 @@
     const progress = activityProgress(activity, d);
     const nextTask = linked.find(t => ['pending','progress'].includes(t.status)) || null;
 
+    const archived = !!activity.archivedAt;
     const action = nextTask
       ? `<button class="focus-action" data-focus-task="${nextTask.id}">Abrir próxima tarefa</button>`
       : linked.length
         ? `<button class="focus-action" data-focus-tasks="${activity.id}">Ver tarefas</button>`
-        : progress === 100
-          ? '<span class="focus-done">Concluída</span>'
-          : `<button class="focus-action" data-focus-done="${activity.id}">Concluir atividade</button>`;
+        : archived
+          ? '<span class="focus-done">Rotina arquivada</span>'
+          : progress === 100
+            ? '<span class="focus-done">Concluída</span>'
+            : `<button class="focus-action" data-focus-done="${activity.id}">Concluir atividade</button>`;
 
     const nextTaskText = nextTask
       ? `<div class="focus-next-task"><span>Próxima tarefa</span><strong>${esc(nextTask.title)}</strong>${nextTask.dueTime ? `<small>${nextTask.dueTime}</small>` : ''}</div>`
@@ -307,24 +310,29 @@
       const progress = activityProgress(a, selected);
       const st = executionStatus(selected, a.id);
 
-      const actions = linked.length
-        ? `<div class="activity-actions">
-            <button class="btn activity-task-btn" data-open-tasks="${a.id}">Abrir tarefas <span>${done}/${linked.length}</span></button>
-            <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
-          </div>`
-        : `<div class="activity-actions">
-            <button class="mini orange" data-activity-status="progress" data-activity-id="${a.id}">Iniciar</button>
-            <button class="mini good" data-activity-status="done" data-activity-id="${a.id}">Concluir</button>
-            <button class="mini red" data-activity-status="skipped" data-activity-id="${a.id}">Não realizada</button>
-            <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
-          </div>`;
+      const archived = !!a.archivedAt;
+      const actions = archived
+        ? (linked.length
+            ? `<div class="activity-actions"><button class="btn activity-task-btn" data-open-tasks="${a.id}">Ver tarefas históricas <span>${done}/${linked.length}</span></button></div>`
+            : '<span class="archived-label">Rotina arquivada</span>')
+        : linked.length
+          ? `<div class="activity-actions">
+              <button class="btn activity-task-btn" data-open-tasks="${a.id}">Abrir tarefas <span>${done}/${linked.length}</span></button>
+              <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
+            </div>`
+          : `<div class="activity-actions">
+              <button class="mini orange" data-activity-status="progress" data-activity-id="${a.id}">Iniciar</button>
+              <button class="mini good" data-activity-status="done" data-activity-id="${a.id}">Concluir</button>
+              <button class="mini red" data-activity-status="skipped" data-activity-id="${a.id}">Não realizada</button>
+              <button class="mini" data-new-task-activity="${a.id}">+ Tarefa</button>
+            </div>`;
 
       return `<div class="day-activity ${st}">
         <div class="activity-time"><strong>${a.time}</strong><span>${endTimeFor(a)}</span></div>
         <div class="activity-main ${linked.length ? 'clickable' : ''}" ${linked.length ? `data-card-open-tasks="${a.id}"` : ''}>
           <div class="activity-heading"><div><strong>${esc(a.title)}</strong><p>${esc(a.category)} · ${a.type === 'habit' ? 'Hábito' : 'Rotina'}</p></div><b>${progress}%</b></div>
           <div class="activity-progress"><i style="width:${progress}%"></i></div>
-          <div class="activity-meta">${linked.length ? `${done} de ${linked.length} tarefas concluídas` : `Conclusão manual · ${dur(a.durationMinutes)}`}</div>
+          <div class="activity-meta">${archived ? 'Rotina arquivada · ' : ''}${linked.length ? `${done} de ${linked.length} tarefas concluídas` : `Conclusão manual · ${dur(a.durationMinutes)}`}</div>
         </div>
         <div class="activity-card-actions">${actions}</div>
       </div>`;
@@ -516,16 +524,18 @@
 
   function renderTodoContext() {
     const box = $('#todoContext');
-    const activity = todoActivity ? activities.find(a => a.id === todoActivity) : null;
+    const activity = todoActivity ? allActivities.find(a => a.id === todoActivity) : null;
 
     if (!activity) {
       box.hidden = true;
       return;
     }
 
+    const archived = !!activity.archivedAt;
     box.hidden = false;
     $('#todoContextTitle').textContent = activity.title;
-    $('#todoContextMeta').textContent = `${activity.time} → ${endTimeFor(activity)} · ${activity.category} · ${activity.type === 'habit' ? 'Hábito' : 'Rotina'}`;
+    $('#todoContextMeta').textContent = `${activity.time} → ${endTimeFor(activity)} · ${activity.category} · ${activity.type === 'habit' ? 'Hábito' : 'Rotina'}${archived ? ' · Arquivada' : ''}`;
+    $('#todoContextNewTask').hidden = archived;
 
     const selectedDateKey = key(selected);
     const relatedForSelectedDay = todoTasks.filter(t => t.activityId === activity.id && t.dueDate === selectedDateKey);
@@ -558,8 +568,18 @@
     $('#todoOverdueCount').textContent = overdue.length;
 
     const routineFilter = $('#todoRoutineFilter');
-    routineFilter.innerHTML = '<option value="">Todas as rotinas</option>' +
-      [...activities].sort((a,b) => a.title.localeCompare(b.title)).map(a => `<option value="${a.id}">${esc(a.title)}</option>`).join('');
+    const activeOptions = [...activities]
+      .sort((a,b) => a.title.localeCompare(b.title))
+      .map(a => `<option value="${a.id}">${esc(a.title)}</option>`)
+      .join('');
+    const selectedArchived = todoActivity && !activities.some(a => a.id === todoActivity)
+      ? allActivities.find(a => a.id === todoActivity)
+      : null;
+    const archivedOption = selectedArchived
+      ? `<option value="${selectedArchived.id}">${esc(selectedArchived.title)} (arquivada)</option>`
+      : '';
+
+    routineFilter.innerHTML = '<option value="">Todas as rotinas</option>' + activeOptions + archivedOption;
     routineFilter.value = todoActivity;
     $('#todoStatusFilter').value = todoStatus;
     $('#todoSearch').value = todoSearch;
