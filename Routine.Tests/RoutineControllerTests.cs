@@ -114,6 +114,112 @@ public class RoutineControllerTests
         Assert.Null(task.CompletedAt);
     }
 
+
+    [Fact]
+    public async Task CreateActivity_SameClientRequestId_IsIdempotent()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var requestId = Guid.NewGuid().ToString();
+        var controller = CreateController(db, userId);
+
+        var first = MakeActivity(Guid.Empty, "Leitura");
+        first.ClientRequestId = requestId;
+        var second = MakeActivity(Guid.Empty, "Leitura");
+        second.ClientRequestId = requestId;
+
+        var firstResult = await controller.CreateActivity(first);
+        var secondResult = await controller.CreateActivity(second);
+
+        Assert.IsType<OkObjectResult>(firstResult);
+        Assert.IsType<OkObjectResult>(secondResult);
+        Assert.Single(await db.Activities.Where(x => x.UserId == userId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateTask_RejectsDuplicateOpenTaskForSameRoutineAndDeadline()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var activity = MakeActivity(userId, "Trabalho");
+        db.Activities.Add(activity);
+        db.RoutineTasks.Add(new RoutineTask
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            ActivityId = activity.Id,
+            Title = "Enviar proposta",
+            DueDate = "2026-10-14",
+            DueTime = "14:00",
+            Status = "pending",
+            Priority = "medium"
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var request = new RoutineTaskRequest(
+            "Enviar proposta",
+            activity.Id,
+            null,
+            "2026-10-14",
+            "14:00",
+            "pending",
+            "medium",
+            null,
+            Guid.NewGuid().ToString());
+
+        var result = await controller.CreateTask(request);
+
+        Assert.IsType<ConflictObjectResult>(result);
+        Assert.Single(await db.RoutineTasks.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateTask_CannotLinkToArchivedActivity()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var archived = MakeActivity(userId, "Projeto antigo", DateTime.UtcNow);
+        db.Activities.Add(archived);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var request = new RoutineTaskRequest(
+            "Tarefa órfã",
+            archived.Id,
+            null,
+            "2026-10-14",
+            "10:00",
+            "pending",
+            "medium",
+            null,
+            Guid.NewGuid().ToString());
+
+        var result = await controller.CreateTask(request);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Empty(await db.RoutineTasks.ToListAsync());
+    }
+
+    [Fact]
+    public async Task SetExecution_ArchivedActivityIsRejected()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var archived = MakeActivity(userId, "Arquivada", DateTime.UtcNow);
+        db.Activities.Add(archived);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var result = await controller.SetExecution(
+            archived.Id,
+            "2026-10-14",
+            new ExecutionRequest("done"));
+
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Empty(await db.Executions.ToListAsync());
+    }
+
     private static AppDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
