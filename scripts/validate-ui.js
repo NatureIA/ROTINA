@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const html = fs.readFileSync('wwwroot/index.html', 'utf8');
 const js = fs.readFileSync('wwwroot/js/app2.js', 'utf8');
+const serviceWorker = fs.readFileSync('wwwroot/service-worker.js', 'utf8');
 
 function fail(message) {
   console.error(message);
@@ -43,3 +44,20 @@ if (invalidCollectionLines.length) {
 console.log('UI references ok');
 console.log('Unique IDs ok');
 console.log('Selector collections ok');
+
+
+const versionedPwaAssets = [
+  ...html.matchAll(/(?:src|href)=["'](\/(?:js\/app2\.js|css\/routine2\.css)\?v=[^"']+)["']/g)
+].map(match => match[1]);
+
+if (versionedPwaAssets.length < 2) {
+  fail('Não foi possível localizar os assets versionados principais do PWA no index.html.');
+}
+
+const missingFromServiceWorker = versionedPwaAssets.filter(asset => !serviceWorker.includes("'" + asset + "'"));
+
+if (missingFromServiceWorker.length) {
+  fail('Assets do index.html ausentes ou com versão diferente no Service Worker: ' + missingFromServiceWorker.join(', '));
+}
+
+console.log('PWA asset versions ok');
