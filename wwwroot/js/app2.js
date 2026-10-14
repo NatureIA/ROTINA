@@ -235,13 +235,13 @@
     $('#currentFocus').innerHTML = focusHtml('AGORA', current, selected, true);
     $('#nextFocus').innerHTML = focusHtml(isToday ? 'PRÓXIMO' : 'PRIMEIRO DO DIA', next, selected, false);
 
-    $('#currentFocus [data-focus-tasks], #nextFocus [data-focus-tasks]').forEach(b => {
+    $$('#currentFocus [data-focus-tasks], #nextFocus [data-focus-tasks]').forEach(b => {
       b.onclick = () => openTasksForActivity(b.dataset.focusTasks);
     });
-    $('#currentFocus [data-focus-task], #nextFocus [data-focus-task]').forEach(b => {
+    $$('#currentFocus [data-focus-task], #nextFocus [data-focus-task]').forEach(b => {
       b.onclick = () => openTaskDrawer(b.dataset.focusTask);
     });
-    $('#currentFocus [data-focus-done], #nextFocus [data-focus-done]').forEach(b => {
+    $$('#currentFocus [data-focus-done], #nextFocus [data-focus-done]').forEach(b => {
       b.onclick = () => setExecution(b.dataset.focusDone, 'done');
     });
   }
@@ -306,7 +306,7 @@
 
       return `<div class="day-activity ${st}">
         <div class="activity-time"><strong>${a.time}</strong><span>${endTimeFor(a)}</span></div>
-        <div class="activity-main">
+        <div class="activity-main ${linked.length ? 'clickable' : ''}" ${linked.length ? `data-card-open-tasks="${a.id}"` : ''}>
           <div class="activity-heading"><div><strong>${esc(a.title)}</strong><p>${esc(a.category)} · ${a.type === 'habit' ? 'Hábito' : 'Rotina'}</p></div><b>${progress}%</b></div>
           <div class="activity-progress"><i style="width:${progress}%"></i></div>
           <div class="activity-meta">${linked.length ? `${done} de ${linked.length} tarefas concluídas` : `Conclusão manual · ${dur(a.durationMinutes)}`}</div>
@@ -315,9 +315,10 @@
       </div>`;
     }).join('') : '<div class="empty">Nenhuma atividade planejada para este dia.</div>';
 
-    $('[data-open-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.openTasks));
-    $('[data-new-task-activity]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.newTaskActivity));
-    $('[data-activity-status]').forEach(b => b.onclick = () => setExecution(b.dataset.activityId, b.dataset.activityStatus));
+    $$('[data-open-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.openTasks));
+    $$('[data-card-open-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.cardOpenTasks));
+    $$('[data-new-task-activity]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.newTaskActivity));
+    $$('[data-activity-status]').forEach(b => b.onclick = () => setExecution(b.dataset.activityId, b.dataset.activityStatus));
 
     renderBars('#weeklyChart', 7, selected);
     $('#weekAverage').textContent = avg(7, selected) + '% média';
@@ -351,9 +352,9 @@
         }).join('')
       : '<div class="empty">Sua rotina está vazia.</div>';
 
-    $('[data-edit-activity]').forEach(b => b.onclick = () => openActivityModal(b.dataset.editActivity));
-    $('[data-routine-new-task]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.routineNewTask));
-    $('[data-routine-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.routineTasks));
+    $$('[data-edit-activity]').forEach(b => b.onclick = () => openActivityModal(b.dataset.editActivity));
+    $$('[data-routine-new-task]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.routineNewTask));
+    $$('[data-routine-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.routineTasks));
     $$('[data-toggle-activity]').forEach(b => b.onclick = async () => {
       const a = activities.find(x => x.id === b.dataset.toggleActivity);
       if (!a) return;
@@ -666,7 +667,11 @@
       renderTodo();
     };
 
-    $('#editDrawerTask').onclick = () => openTaskModal(task.id);
+    $('#editDrawerTask').onclick = () => {
+      const id = task.id;
+      closeTaskDrawer();
+      openTaskModal(id);
+    };
     $('#deleteDrawerTask').onclick = async () => {
       if (!confirm('Excluir esta tarefa?')) return;
       await api('/api/tasks/' + task.id, { method:'DELETE' });

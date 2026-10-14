@@ -19,6 +19,11 @@ jobs:
           node --check wwwroot/service-worker.js
           node -e "JSON.parse(require('fs').readFileSync('wwwroot/manifest.webmanifest','utf8')); console.log('manifest ok')"
 
+      - name: Validate selector collection usage
+        shell: pwsh
+        run: |
+          node -e "const fs=require('fs'); const s=fs.readFileSync('wwwroot/js/app2.js','utf8'); const lines=s.split(/\\r?\\n/); const bad=lines.map((line,i)=>({i:i+1,line})).filter(x=>/(?<!\\$)\\$\\([^)]*\\)\\.forEach/.test(x.line)); if(bad.length){console.error(bad.map(x=>x.i+': '+x.line).join('\\n')); process.exit(1)} console.log('selector collections ok')"
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
