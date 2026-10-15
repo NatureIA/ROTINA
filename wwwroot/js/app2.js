@@ -579,63 +579,63 @@
   }
 
   function drawSystemShareBackground(ctx, width, height) {
-    // Fundo oficial do card padrão: céu escuro, pôr do sol laranja e montanhas.
     const sky = ctx.createLinearGradient(0, 0, 0, height);
     sky.addColorStop(0, '#17191c');
     sky.addColorStop(.18, '#101214');
-    sky.addColorStop(.37, '#0c0d0f');
-    sky.addColorStop(.48, '#17100d');
-    sky.addColorStop(.62, '#0a0b0c');
-    sky.addColorStop(1, '#08090a');
+    sky.addColorStop(.36, '#0b0c0e');
+    sky.addColorStop(.47, '#1a100a');
+    sky.addColorStop(.58, '#0c0d0e');
+    sky.addColorStop(1, '#070809');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
 
-    const horizonGlow = ctx.createRadialGradient(
-      width * .80, height * .43, 8,
-      width * .80, height * .43, width * .62
-    );
-    horizonGlow.addColorStop(0, 'rgba(255,181,88,.88)');
-    horizonGlow.addColorStop(.10, 'rgba(255,125,30,.54)');
-    horizonGlow.addColorStop(.30, 'rgba(190,64,8,.26)');
-    horizonGlow.addColorStop(.62, 'rgba(73,26,10,.10)');
-    horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = horizonGlow;
-    ctx.fillRect(0, 0, width, height);
+    const horizon = ctx.createRadialGradient(width * .82, height * .405, 12, width * .82, height * .405, width * .62);
+    horizon.addColorStop(0, 'rgba(255,179,78,.95)');
+    horizon.addColorStop(.10, 'rgba(255,124,28,.68)');
+    horizon.addColorStop(.28, 'rgba(220,72,8,.34)');
+    horizon.addColorStop(.52, 'rgba(116,39,8,.14)');
+    horizon.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = horizon;
+    ctx.fillRect(0, height * .18, width, height * .48);
 
-    const cloudGlow = ctx.createLinearGradient(0, height * .34, 0, height * .52);
-    cloudGlow.addColorStop(0, 'rgba(255,112,20,0)');
-    cloudGlow.addColorStop(.48, 'rgba(255,104,18,.10)');
-    cloudGlow.addColorStop(1, 'rgba(255,86,0,0)');
-    ctx.fillStyle = cloudGlow;
-    ctx.fillRect(0, height * .30, width, height * .25);
+    const cloudY = height * .37;
+    const cloudGrad = ctx.createLinearGradient(0, cloudY - 80, 0, cloudY + 140);
+    cloudGrad.addColorStop(0, 'rgba(94,34,15,0)');
+    cloudGrad.addColorStop(.45, 'rgba(125,43,14,.12)');
+    cloudGrad.addColorStop(.70, 'rgba(255,100,16,.12)');
+    cloudGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = cloudGrad;
+    for (let i = 0; i < 11; i++) {
+      ctx.beginPath();
+      ctx.ellipse(620 + i * 55, cloudY + (i % 3) * 15, 125, 28, -.10, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    const sunX = width * .825;
+    const sunX = width * .835;
     const sunY = height * .445;
-    const sunRadius = 62;
-
-    const sunHalo = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 145);
-    sunHalo.addColorStop(0, 'rgba(255,220,145,.92)');
-    sunHalo.addColorStop(.22, 'rgba(255,146,57,.64)');
-    sunHalo.addColorStop(1, 'rgba(255,112,23,0)');
-    ctx.fillStyle = sunHalo;
-    ctx.fillRect(sunX - 160, sunY - 160, 320, 320);
-
-    ctx.fillStyle = '#ffb357';
+    const sunR = 55;
+    const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 150);
+    halo.addColorStop(0, 'rgba(255,226,158,.90)');
+    halo.addColorStop(.28, 'rgba(255,147,53,.55)');
+    halo.addColorStop(1, 'rgba(255,111,24,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(sunX - 170, sunY - 170, 340, 340);
+    ctx.fillStyle = '#ffbb64';
     ctx.beginPath();
-    ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
     ctx.fill();
 
-    function drawMountain(points, fill, shadow = null) {
+    function mountain(points, fill, shadowColor = null, shadowBlur = 0) {
       ctx.save();
-      if (shadow) {
-        ctx.shadowColor = shadow;
-        ctx.shadowBlur = 32;
+      if (shadowColor) {
+        ctx.shadowColor = shadowColor;
+        ctx.shadowBlur = shadowBlur;
       }
       ctx.fillStyle = fill;
       ctx.beginPath();
-      ctx.moveTo(0, height * .54);
+      ctx.moveTo(0, height * .52);
       points.forEach(([x,y]) => ctx.lineTo(width * x, height * y));
-      ctx.lineTo(width, height * .56);
+      ctx.lineTo(width, height * .57);
       ctx.lineTo(width, height);
       ctx.lineTo(0, height);
       ctx.closePath();
@@ -643,38 +643,34 @@
       ctx.restore();
     }
 
-    drawMountain([
-      [.02,.475],[.075,.455],[.12,.420],[.17,.470],[.22,.447],[.27,.485],
-      [.33,.452],[.39,.492],[.46,.462],[.53,.505],[.61,.472],[.68,.505],
-      [.75,.475],[.81,.500],[.86,.444],[.91,.412],[.96,.455]
-    ], '#17181a', 'rgba(255,103,17,.12)');
+    mountain([
+      [.00,.475],[.055,.462],[.10,.435],[.15,.402],[.20,.462],[.25,.443],[.30,.483],
+      [.36,.448],[.42,.493],[.49,.457],[.56,.505],[.63,.472],[.70,.508],[.77,.480],
+      [.83,.502],[.89,.437],[.94,.405],[1,.458]
+    ], '#171819', 'rgba(255,101,16,.12)', 30);
 
-    drawMountain([
-      [.00,.505],[.06,.480],[.13,.452],[.19,.505],[.26,.472],[.33,.520],
-      [.40,.484],[.48,.531],[.57,.489],[.64,.536],[.72,.496],[.79,.526],
-      [.86,.474],[.93,.450],[1,.508]
-    ], '#0e0f10');
+    mountain([
+      [.00,.510],[.06,.485],[.12,.455],[.18,.508],[.24,.478],[.31,.523],[.38,.489],
+      [.46,.534],[.54,.495],[.62,.540],[.70,.507],[.78,.538],[.86,.490],[.93,.462],[1,.520]
+    ], '#0d0e0f');
 
-    drawMountain([
-      [.00,.535],[.08,.508],[.15,.485],[.23,.540],[.31,.505],[.39,.552],
-      [.48,.516],[.57,.558],[.66,.523],[.75,.559],[.83,.520],[.91,.500],[1,.548]
+    mountain([
+      [.00,.545],[.07,.515],[.15,.487],[.23,.548],[.31,.512],[.40,.562],[.49,.526],
+      [.58,.568],[.67,.535],[.76,.570],[.84,.535],[.92,.505],[1,.558]
     ], '#070809');
 
-    ctx.strokeStyle = 'rgba(255,117,31,.18)';
+    ctx.strokeStyle = 'rgba(255,119,28,.20)';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(width * .80, height * .515);
-    ctx.lineTo(width * .865, height * .445);
-    ctx.lineTo(width * .925, height * .486);
+    ctx.lineTo(width * .89, height * .437);
+    ctx.lineTo(width * .94, height * .405);
     ctx.stroke();
 
-    const vignette = ctx.createRadialGradient(
-      width / 2, height * .45, width * .10,
-      width / 2, height * .45, width * .78
-    );
+    const vignette = ctx.createRadialGradient(width / 2, height * .43, width * .08, width / 2, height * .43, width * .78);
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(.72, 'rgba(0,0,0,.16)');
-    vignette.addColorStop(1, 'rgba(0,0,0,.72)');
+    vignette.addColorStop(.72, 'rgba(0,0,0,.10)');
+    vignette.addColorStop(1, 'rgba(0,0,0,.74)');
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
   }
@@ -687,304 +683,322 @@
     const sourceY = (image.naturalHeight - sourceHeight) / 2;
 
     ctx.save();
-    ctx.filter = 'brightness(.54) saturate(.9) contrast(1.08)';
-    ctx.drawImage(
-      image,
-      sourceX, sourceY, sourceWidth, sourceHeight,
-      0, 0, width, height
-    );
+    ctx.filter = 'brightness(.52) saturate(.88) contrast(1.08)';
+    ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
     ctx.restore();
 
     const overlay = ctx.createLinearGradient(0, 0, 0, height);
-    overlay.addColorStop(0, 'rgba(8,9,11,.58)');
-    overlay.addColorStop(.40, 'rgba(8,9,11,.24)');
-    overlay.addColorStop(.72, 'rgba(8,9,11,.44)');
-    overlay.addColorStop(1, 'rgba(8,9,11,.78)');
+    overlay.addColorStop(0, 'rgba(7,8,10,.60)');
+    overlay.addColorStop(.35, 'rgba(7,8,10,.26)');
+    overlay.addColorStop(.68, 'rgba(7,8,10,.42)');
+    overlay.addColorStop(1, 'rgba(7,8,10,.82)');
     ctx.fillStyle = overlay;
     ctx.fillRect(0, 0, width, height);
 
-    const warm = ctx.createRadialGradient(width * .82, height * .42, 0, width * .82, height * .42, width * .50);
+    const warm = ctx.createRadialGradient(width * .82, height * .40, 0, width * .82, height * .40, width * .50);
     warm.addColorStop(0, 'rgba(255,120,23,.22)');
     warm.addColorStop(1, 'rgba(255,120,23,0)');
     ctx.fillStyle = warm;
     ctx.fillRect(0, 0, width, height);
   }
 
-  function drawShareTitle(ctx, canvasWidth) {
-    const meuText = 'Meu';
-    const desempenhoText = 'desempenho';
-    const gap = 24;
+  function drawSpacedText(ctx, text, centerX, y, font, spacing, color = '#ffffff') {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'alphabetic';
+    const widths = [...text].map(ch => ctx.measureText(ch).width);
+    const total = widths.reduce((a,b) => a + b, 0) + spacing * Math.max(0, text.length - 1);
+    let x = centerX - total / 2;
+    [...text].forEach((ch, i) => {
+      ctx.fillText(ch, x, y);
+      x += widths[i] + spacing;
+    });
+  }
 
-    ctx.font = '800 76px Arial';
-    const meuWidth = ctx.measureText(meuText).width;
-    const desempenhoWidth = ctx.measureText(desempenhoText).width;
-    const totalWidth = meuWidth + gap + desempenhoWidth;
-    const startX = (canvasWidth - totalWidth) / 2;
+  function drawShareBrand(ctx) {
+    const text = 'ROUTINE';
+    const spacing = 18;
+    ctx.font = '500 48px Arial';
+    const widths = [...text].map(ch => ctx.measureText(ch).width);
+    const total = widths.reduce((a,b) => a + b, 0) + spacing * (text.length - 1);
+    let x = 540 - total / 2;
+    [...text].forEach((ch, i) => {
+      ctx.fillStyle = i === 1 ? '#ff7a1a' : '#f3f3f4';
+      ctx.fillText(ch, x, 118);
+      x += widths[i] + spacing;
+    });
+  }
+
+  function drawShareTitle(ctx, canvasWidth) {
+    const meu = 'Meu';
+    const desempenho = 'desempenho';
+    const gap = 24;
+    ctx.font = '800 82px Arial';
+    const meuWidth = ctx.measureText(meu).width;
+    const desempenhoWidth = ctx.measureText(desempenho).width;
+    const total = meuWidth + gap + desempenhoWidth;
+    const startX = (canvasWidth - total) / 2;
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#f5f5f5';
-    ctx.fillText(meuText, startX, 245);
+    ctx.fillStyle = '#f4f4f5';
+    ctx.fillText(meu, startX, 250);
     ctx.fillStyle = '#ff7a1a';
-    ctx.fillText(desempenhoText, startX + meuWidth + gap, 245);
-  }
-
-  function drawShareMetricIcon(ctx, x, y, accent) {
-    ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.arc(x, y, 26, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#111214';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(x - 10, y);
-    ctx.lineTo(x - 2, y + 8);
-    ctx.lineTo(x + 12, y - 9);
-    ctx.stroke();
-  }
-
-  let standardPerformanceTemplatePromise = null;
-
-  function loadStandardPerformanceTemplate() {
-    if (!standardPerformanceTemplatePromise) {
-      standardPerformanceTemplatePromise = new Promise((resolve, reject) => {
-        const image = new Image();
-        image.decoding = 'async';
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error('Não foi possível carregar o modelo padrão.'));
-        image.src = '/assets/share/performance-standard.webp?v=20261015-1';
-      });
-    }
-    return standardPerformanceTemplatePromise;
-  }
-
-  function coverTemplateValue(ctx, x, y, w, h, radius = 18) {
-    roundRectPath(ctx, x, y, w, h, radius);
-    const g = ctx.createLinearGradient(x, y, x, y + h);
-    g.addColorStop(0, 'rgba(16,17,19,.98)');
-    g.addColorStop(1, 'rgba(10,11,13,.98)');
-    ctx.fillStyle = g;
-    ctx.fill();
+    ctx.fillText(desempenho, startX + meuWidth + gap, 250);
   }
 
   function fitMetricFont(ctx, text, maxWidth, startSize, minSize = 30) {
     let size = startSize;
     while (size > minSize) {
       ctx.font = `800 ${size}px Arial`;
-      if (ctx.measureText(text).width <= maxWidth) return size;
+      if (ctx.measureText(text).width <= maxWidth) break;
       size -= 2;
     }
-    return minSize;
+    return size;
   }
 
-  async function standardPerformanceShareBlob(stats, evolution, sequence) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1920;
-    const ctx = canvas.getContext('2d');
-    const template = await loadStandardPerformanceTemplate();
+  function drawPerformanceIcon(ctx, type, x, y, accent) {
+    ctx.save();
+    ctx.strokeStyle = accent;
+    ctx.fillStyle = accent;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+    if (type === 'done') {
+      ctx.beginPath();
+      ctx.arc(x, y, 34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 13, y);
+      ctx.lineTo(x - 3, y + 11);
+      ctx.lineTo(x + 17, y - 13);
+      ctx.stroke();
+    } else if (type === 'streak') {
+      ctx.beginPath();
+      ctx.moveTo(x, y + 34);
+      ctx.bezierCurveTo(x - 29, y + 21, x - 31, y - 5, x - 8, y - 23);
+      ctx.bezierCurveTo(x - 4, y - 12, x + 5, y - 4, x + 10, y - 22);
+      ctx.bezierCurveTo(x + 34, y - 2, x + 32, y + 23, x, y + 34);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y + 24);
+      ctx.bezierCurveTo(x - 10, y + 14, x - 9, y + 3, x + 1, y - 7);
+      ctx.bezierCurveTo(x + 11, y + 4, x + 12, y + 15, x, y + 24);
+      ctx.stroke();
+    } else if (type === 'evolution') {
+      const heights = [24,43,66];
+      heights.forEach((h, i) => {
+        ctx.fillRect(x - 28 + i * 23, y + 30 - h, 12, h);
+      });
+    } else if (type === 'calendar') {
+      roundRectPath(ctx, x - 34, y - 29, 68, 62, 7);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 34, y - 8);
+      ctx.lineTo(x + 34, y - 8);
+      ctx.moveTo(x - 18, y - 37);
+      ctx.lineTo(x - 18, y - 22);
+      ctx.moveTo(x + 18, y - 37);
+      ctx.lineTo(x + 18, y - 22);
+      ctx.stroke();
+      [[-16,7],[0,7],[16,7],[-16,22],[0,22],[16,22]].forEach(([dx,dy]) => {
+        ctx.fillRect(x + dx - 3, y + dy - 3, 6, 6);
+      });
+    } else if (type === 'trophy') {
+      ctx.beginPath();
+      ctx.moveTo(x - 24, y - 28);
+      ctx.lineTo(x + 24, y - 28);
+      ctx.lineTo(x + 19, y + 2);
+      ctx.bezierCurveTo(x + 15, y + 22, x - 15, y + 22, x - 19, y + 2);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 24, y - 20);
+      ctx.lineTo(x - 38, y - 20);
+      ctx.lineTo(x - 38, y - 3);
+      ctx.bezierCurveTo(x - 36, y + 10, x - 26, y + 14, x - 18, y + 14);
+      ctx.moveTo(x + 24, y - 20);
+      ctx.lineTo(x + 38, y - 20);
+      ctx.lineTo(x + 38, y - 3);
+      ctx.bezierCurveTo(x + 36, y + 10, x + 26, y + 14, x + 18, y + 14);
+      ctx.moveTo(x, y + 22);
+      ctx.lineTo(x, y + 39);
+      ctx.moveTo(x - 17, y + 39);
+      ctx.lineTo(x + 17, y + 39);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
-    // Atualiza o anel da aderência mantendo o layout do template.
-    const cx = 566;
-    const cy = 731;
-    const radius = 271;
+  function drawPerformanceMetricCard(ctx, card) {
+    ctx.save();
+    roundRectPath(ctx, card.x, card.y, card.w, card.h, 28);
+    const bg = ctx.createLinearGradient(card.x, card.y, card.x, card.y + card.h);
+    bg.addColorStop(0, 'rgba(24,25,27,.88)');
+    bg.addColorStop(1, 'rgba(10,11,13,.92)');
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.strokeStyle = card.type === 'evolution' ? 'rgba(68,190,126,.34)' : 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    drawPerformanceIcon(ctx, card.type, card.x + 75, card.y + 94, card.accent);
+
+    ctx.strokeStyle = 'rgba(255,255,255,.24)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(card.x + 142, card.y + 42);
+    ctx.lineTo(card.x + 142, card.y + card.h - 42);
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#ffffff';
+    fitMetricFont(ctx, card.value, card.w - 190, 58, 34);
+    ctx.fillText(card.value, card.x + 175, card.y + 103);
+
+    ctx.fillStyle = '#c2c4c8';
+    ctx.font = '500 25px Arial';
+    card.lines.forEach((line, i) => ctx.fillText(line, card.x + 175, card.y + 150 + i * 31));
+    ctx.restore();
+  }
+
+  function drawPerformanceShareLayout(ctx, stats, evolution, sequence) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    drawShareBrand(ctx);
+    drawShareTitle(ctx, 1080);
+
+    drawSpacedText(ctx, 'DISCIPLINA HOJE.', 540, 318, '500 25px Arial', 9, '#b8bbc0');
+    drawSpacedText(ctx, 'UMA VIDA MELHOR AMANHÃ.', 540, 352, '500 25px Arial', 9, '#b8bbc0');
+
+    const cx = 540, cy = 675, radius = 230;
     const adherence = Math.max(0, Math.min(100, stats.adherence));
 
-    ctx.lineWidth = 42;
-    ctx.strokeStyle = 'rgba(54,55,58,.96)';
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,105,20,.38)';
+    ctx.shadowBlur = 28;
+    ctx.lineWidth = 36;
+    ctx.strokeStyle = 'rgba(59,61,64,.72)';
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
     ctx.stroke();
 
     const ring = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
-    ring.addColorStop(0, '#ff6b13');
-    ring.addColorStop(.55, '#ff8c22');
-    ring.addColorStop(1, '#ffba50');
+    ring.addColorStop(0, '#ff6812');
+    ring.addColorStop(.52, '#ff861d');
+    ring.addColorStop(1, '#ffc35b');
     ctx.strokeStyle = ring;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (adherence / 100));
     ctx.stroke();
-    ctx.lineCap = 'butt';
+    ctx.restore();
 
-    // Percentual central.
-    coverTemplateValue(ctx, 360, 603, 410, 168, 70);
+    ctx.fillStyle = 'rgba(5,6,7,.52)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius - 27, 0, Math.PI * 2);
+    ctx.fill();
+
+    const adherenceText = adherence + '%';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    const adherenceText = adherence + '%';
-    fitMetricFont(ctx, adherenceText, 365, 162, 112);
-    ctx.fillText(adherenceText, 565, 690);
+    fitMetricFont(ctx, adherenceText, 390, 150, 108);
+    ctx.fillText(adherenceText, cx, cy - 10);
 
-    // Indicadores dos quatro cards.
-    const metrics = [
-      {
-        text:`${stats.completedActivities} / ${stats.totalActivities}`,
-        box:[238,1055,220,100], x:248, y:1117, max:200, size:58
-      },
-      {
-        text:String(sequence),
-        box:[742,1055,190,100], x:754, y:1117, max:165, size:60
-      },
-      {
-        text:signedPercent(evolution),
-        box:[238,1292,220,102], x:248, y:1355, max:200, size:58,
-        color:evolution < 0 ? '#ff6876' : '#ffffff'
-      },
-      {
-        text:`${stats.consistentDays} / ${stats.plannedDays}`,
-        box:[742,1292,220,102], x:752, y:1355, max:205, size:55
-      }
-    ];
+    drawSpacedText(ctx, 'ADERÊNCIA', cx, cy + 82, '500 32px Arial', 10, '#e0e1e3');
 
-    metrics.forEach(metric => {
-      coverTemplateValue(ctx, ...metric.box, 12);
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = metric.color || '#ffffff';
-      fitMetricFont(ctx, metric.text, metric.max, metric.size, 34);
-      ctx.fillText(metric.text, metric.x, metric.y);
+    ctx.fillStyle = '#42e28e';
+    [22,38,55].forEach((h, i) => {
+      ctx.fillRect(cx - 29 + i * 22, cy + 157 - h, 11, h);
     });
 
-    // Mês/ano.
-    coverTemplateValue(ctx, 345, 1770, 390, 78, 6);
-    const month = new Intl.DateTimeFormat('pt-BR', {
-      month:'long',
-      year:'numeric'
-    }).format(new Date()).toUpperCase();
+    const cards = [
+      {
+        type:'done', x:62, y:995, w:458, h:205, accent:'#ff7a1a',
+        value:`${stats.completedActivities} / ${stats.totalActivities}`,
+        lines:['ATIVIDADES','CONCLUÍDAS']
+      },
+      {
+        type:'streak', x:560, y:995, w:458, h:205, accent:'#ff7a1a',
+        value:String(sequence),
+        lines:['DIAS DE','SEQUÊNCIA']
+      },
+      {
+        type:'evolution', x:62, y:1230, w:458, h:205, accent:evolution < 0 ? '#ff6675' : '#43e18d',
+        value:signedPercent(evolution),
+        lines:['DE EVOLUÇÃO']
+      },
+      {
+        type:'calendar', x:560, y:1230, w:458, h:205, accent:'#ff7a1a',
+        value:`${stats.consistentDays} / ${stats.plannedDays}`,
+        lines:['DIAS','CONSISTENTES']
+      }
+    ];
+    cards.forEach(card => drawPerformanceMetricCard(ctx, card));
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#aeb0b4';
-    ctx.font = '500 27px Arial';
-    ctx.fillText(month, 540, 1811);
+    const bx = 62, by = 1472, bw = 956, bh = 235;
+    roundRectPath(ctx, bx, by, bw, bh, 30);
+    const callout = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+    callout.addColorStop(0, 'rgba(20,18,16,.94)');
+    callout.addColorStop(.70, 'rgba(18,17,17,.94)');
+    callout.addColorStop(1, 'rgba(48,25,13,.94)');
+    ctx.fillStyle = callout;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,122,26,.62)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-    return await new Promise(resolve =>
-      canvas.toBlob(blob => resolve(blob), 'image/png', 0.97)
-    );
+    drawPerformanceIcon(ctx, 'trophy', 154, 1589, '#ff7a1a');
+
+    ctx.strokeStyle = 'rgba(255,255,255,.24)';
+    ctx.beginPath();
+    ctx.moveTo(230, 1518);
+    ctx.lineTo(230, 1662);
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 54px Arial';
+    ctx.fillText('Meu melhor', 278, 1580);
+    ctx.fillStyle = '#ff7a1a';
+    ctx.fillText('ritmo até agora.', 278, 1640);
+
+    ctx.strokeStyle = '#ff7a1a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(730, 1693);
+    ctx.bezierCurveTo(850, 1677, 930, 1600, 1018, 1510);
+    ctx.stroke();
+
+    const month = new Intl.DateTimeFormat('pt-BR', { month:'long', year:'numeric' }).format(new Date()).toUpperCase();
+    ctx.strokeStyle = 'rgba(255,255,255,.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(174, 1806);
+    ctx.lineTo(356, 1806);
+    ctx.moveTo(724, 1806);
+    ctx.lineTo(906, 1806);
+    ctx.stroke();
+
+    drawSpacedText(ctx, month, 540, 1818, '500 26px Arial', 7, '#aeb0b4');
   }
 
   async function performanceShareBlob(stats, evolution, sequence, backgroundImage = null) {
-    if (!backgroundImage) {
-      return await standardPerformanceShareBlob(stats, evolution, sequence);
-    }
-
     const canvas = document.createElement('canvas');
     canvas.width = 1080;
     canvas.height = 1920;
     const ctx = canvas.getContext('2d');
 
-    drawImageCover(ctx, backgroundImage, canvas.width, canvas.height);
+    if (backgroundImage) drawImageCover(ctx, backgroundImage, canvas.width, canvas.height);
+    else drawSystemShareBackground(ctx, canvas.width, canvas.height);
 
-    ctx.strokeStyle = 'rgba(255,120,23,.30)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(-30, 100, 260, -.8, 1.1);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(1080, 720, 330, 2.1, 4.7);
-    ctx.stroke();
+    drawPerformanceShareLayout(ctx, stats, evolution, sequence);
 
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#f5f5f5';
-    ctx.font = '600 48px Arial';
-    ctx.fillText('R O U T I N E', 540, 120);
-
-    drawShareTitle(ctx, canvas.width);
-
-    ctx.fillStyle = '#bfc1c5';
-    ctx.font = '500 25px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('DISCIPLINA HOJE. UMA VIDA MELHOR AMANHÃ.', 540, 315);
-
-    const cx = 540, cy = 650, radius = 225;
-    ctx.lineWidth = 34;
-    ctx.strokeStyle = 'rgba(54,56,60,.86)';
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
-    ctx.stroke();
-
-    const ring = ctx.createLinearGradient(330, 430, 760, 850);
-    ring.addColorStop(0, '#ffb14f');
-    ring.addColorStop(1, '#ef5e00');
-    ctx.strokeStyle = ring;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (stats.adherence / 100));
-    ctx.stroke();
-    ctx.lineCap = 'butt';
-
-    ctx.fillStyle = 'rgba(10,11,13,.58)';
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius - 23, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 145px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(stats.adherence + '%', cx, cy + 25);
-    ctx.font = '500 34px Arial';
-    ctx.fillStyle = '#d2d4d7';
-    ctx.fillText('ADERÊNCIA', cx, cy + 95);
-
-    ctx.fillStyle = '#42dc8a';
-    const glyphBaseY = cy + 150;
-    [22,34,49].forEach((h, i) => {
-      const x = cx - 28 + i * 22;
-      ctx.fillRect(x, glyphBaseY - h, 10, h);
-    });
-
-    const cards = [
-      {x:70,y:980,w:450,h:220,value:`${stats.completedActivities} / ${stats.totalActivities}`,label:'ATIVIDADES CONCLUÍDAS',accent:'#ff7a1a'},
-      {x:560,y:980,w:450,h:220,value:`${sequence}`,label:'DIAS DE SEQUÊNCIA',accent:'#ff7a1a'},
-      {x:70,y:1235,w:450,h:220,value:signedPercent(evolution),label:'DE EVOLUÇÃO',accent:evolution < 0 ? '#ff6675' : '#43d889'},
-      {x:560,y:1235,w:450,h:220,value:`${stats.consistentDays} / ${stats.plannedDays}`,label:'DIAS CONSISTENTES',accent:'#ff7a1a'}
-    ];
-
-    cards.forEach(card => {
-      roundRectPath(ctx, card.x, card.y, card.w, card.h, 28);
-      ctx.fillStyle = 'rgba(15,16,18,.82)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.18)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      drawShareMetricIcon(ctx, card.x + 68, card.y + 72, card.accent);
-
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '800 58px Arial';
-      ctx.fillText(card.value, card.x + 125, card.y + 100);
-      ctx.fillStyle = '#c0c3c7';
-      ctx.font = '500 25px Arial';
-      ctx.fillText(card.label, card.x + 125, card.y + 150);
-    });
-
-    roundRectPath(ctx, 70, 1510, 940, 230, 30);
-    const callout = ctx.createLinearGradient(70, 1510, 1010, 1740);
-    callout.addColorStop(0, 'rgba(20,20,21,.90)');
-    callout.addColorStop(1, 'rgba(50,25,13,.90)');
-    ctx.fillStyle = callout;
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,120,23,.58)';
-    ctx.stroke();
-
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 52px Arial';
-    ctx.fillText('Meu melhor ritmo até agora.', 540, 1605);
-    ctx.fillStyle = '#ff7a1a';
-    ctx.font = '700 38px Arial';
-    ctx.fillText(`${stats.adherence}% de aderência nos últimos 30 dias`, 540, 1670);
-
-    const month = new Intl.DateTimeFormat('pt-BR', { month:'long', year:'numeric' }).format(new Date()).toUpperCase();
-    ctx.fillStyle = '#a0a3a8';
-    ctx.font = '500 28px Arial';
-    ctx.fillText(month, 540, 1835);
-
-    return await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/png', 0.96));
+    return await new Promise(resolve =>
+      canvas.toBlob(blob => resolve(blob), 'image/png', 0.97)
+    );
   }
 
   function openPerformanceShareModal() {
