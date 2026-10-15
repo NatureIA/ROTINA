@@ -743,14 +743,140 @@
     ctx.stroke();
   }
 
+  let standardPerformanceTemplatePromise = null;
+
+  function loadStandardPerformanceTemplate() {
+    if (!standardPerformanceTemplatePromise) {
+      standardPerformanceTemplatePromise = new Promise((resolve, reject) => {
+        const image = new Image();
+        image.decoding = 'async';
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('Não foi possível carregar o modelo padrão.'));
+        image.src = '/assets/share/performance-standard.webp?v=20261015-1';
+      });
+    }
+    return standardPerformanceTemplatePromise;
+  }
+
+  function coverTemplateValue(ctx, x, y, w, h, radius = 18) {
+    roundRectPath(ctx, x, y, w, h, radius);
+    const g = ctx.createLinearGradient(x, y, x, y + h);
+    g.addColorStop(0, 'rgba(16,17,19,.98)');
+    g.addColorStop(1, 'rgba(10,11,13,.98)');
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+
+  function fitMetricFont(ctx, text, maxWidth, startSize, minSize = 30) {
+    let size = startSize;
+    while (size > minSize) {
+      ctx.font = `800 ${size}px Arial`;
+      if (ctx.measureText(text).width <= maxWidth) return size;
+      size -= 2;
+    }
+    return minSize;
+  }
+
+  async function standardPerformanceShareBlob(stats, evolution, sequence) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+    const template = await loadStandardPerformanceTemplate();
+
+    ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+
+    // Atualiza o anel da aderência mantendo o layout do template.
+    const cx = 566;
+    const cy = 731;
+    const radius = 271;
+    const adherence = Math.max(0, Math.min(100, stats.adherence));
+
+    ctx.lineWidth = 42;
+    ctx.strokeStyle = 'rgba(54,55,58,.96)';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
+    ctx.stroke();
+
+    const ring = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
+    ring.addColorStop(0, '#ff6b13');
+    ring.addColorStop(.55, '#ff8c22');
+    ring.addColorStop(1, '#ffba50');
+    ctx.strokeStyle = ring;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (adherence / 100));
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // Percentual central.
+    coverTemplateValue(ctx, 360, 603, 410, 168, 70);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    const adherenceText = adherence + '%';
+    fitMetricFont(ctx, adherenceText, 365, 162, 112);
+    ctx.fillText(adherenceText, 565, 690);
+
+    // Indicadores dos quatro cards.
+    const metrics = [
+      {
+        text:`${stats.completedActivities} / ${stats.totalActivities}`,
+        box:[238,1055,220,100], x:248, y:1117, max:200, size:58
+      },
+      {
+        text:String(sequence),
+        box:[742,1055,190,100], x:754, y:1117, max:165, size:60
+      },
+      {
+        text:signedPercent(evolution),
+        box:[238,1292,220,102], x:248, y:1355, max:200, size:58,
+        color:evolution < 0 ? '#ff6876' : '#ffffff'
+      },
+      {
+        text:`${stats.consistentDays} / ${stats.plannedDays}`,
+        box:[742,1292,220,102], x:752, y:1355, max:205, size:55
+      }
+    ];
+
+    metrics.forEach(metric => {
+      coverTemplateValue(ctx, ...metric.box, 12);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = metric.color || '#ffffff';
+      fitMetricFont(ctx, metric.text, metric.max, metric.size, 34);
+      ctx.fillText(metric.text, metric.x, metric.y);
+    });
+
+    // Mês/ano.
+    coverTemplateValue(ctx, 345, 1770, 390, 78, 6);
+    const month = new Intl.DateTimeFormat('pt-BR', {
+      month:'long',
+      year:'numeric'
+    }).format(new Date()).toUpperCase();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#aeb0b4';
+    ctx.font = '500 27px Arial';
+    ctx.fillText(month, 540, 1811);
+
+    return await new Promise(resolve =>
+      canvas.toBlob(blob => resolve(blob), 'image/png', 0.97)
+    );
+  }
+
   async function performanceShareBlob(stats, evolution, sequence, backgroundImage = null) {
+    if (!backgroundImage) {
+      return await standardPerformanceShareBlob(stats, evolution, sequence);
+    }
+
     const canvas = document.createElement('canvas');
     canvas.width = 1080;
     canvas.height = 1920;
     const ctx = canvas.getContext('2d');
 
-    if (backgroundImage) drawImageCover(ctx, backgroundImage, canvas.width, canvas.height);
-    else drawSystemShareBackground(ctx, canvas.width, canvas.height);
+    drawImageCover(ctx, backgroundImage, canvas.width, canvas.height);
 
     ctx.strokeStyle = 'rgba(255,120,23,.30)';
     ctx.lineWidth = 2;
