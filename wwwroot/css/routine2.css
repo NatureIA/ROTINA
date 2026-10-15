@@ -164,3 +164,28 @@ th{font-size:9.5px}
   .performance-achievement-copy span{font-size:9px;line-height:1.45}
   .performance-share-btn{grid-column:1/-1;width:100%;min-width:0;margin-top:3px;padding:12px}
 }
+
+
+/* Compartilhamento de desempenho — fundo padrão, câmera ou galeria */
+.share-modal-card{width:min(620px,94vw);padding:20px}
+.share-step[hidden]{display:none!important}
+.share-helper{margin:4px 0 16px;color:#92969d;font-size:11px;line-height:1.5}
+.share-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.share-choice{min-height:150px;border:1px solid #34363b;border-radius:17px;background:linear-gradient(145deg,#202124,#18191b);color:#fff;padding:18px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:8px;cursor:pointer;transition:.18s}
+.share-choice:hover{border-color:#77411e;background:radial-gradient(circle at 15% 0,rgba(255,120,23,.10),transparent 45%),linear-gradient(145deg,#211e1b,#18191b);transform:translateY(-1px)}
+.share-choice-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#ff9138;background:rgba(255,120,23,.08)}
+.share-choice-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.share-choice strong{font-size:13px}.share-choice small{color:#858a91;font-size:10px;line-height:1.45}
+.share-back{border:0;background:transparent;color:#ff9b42;padding:0 0 12px;font-size:10.5px;font-weight:800;cursor:pointer}
+.share-file-input{display:none}
+.share-camera-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:10px}
+.share-camera-head .share-back{padding:0}.share-camera-head span{color:#858a91;font-size:9.5px;text-align:right}
+.share-camera-stage{background:#0a0b0c;border:1px solid #34363b;border-radius:16px;overflow:hidden;aspect-ratio:3/4;max-height:58vh;display:grid;place-items:center}
+.share-camera-stage video{width:100%;height:100%;object-fit:cover;background:#090a0b}
+.share-capture-btn{margin-top:12px}
+@media(max-width:620px){
+  .share-modal-card{padding:17px}
+  .share-choice-grid{grid-template-columns:1fr}
+  .share-choice{min-height:118px}
+  .share-camera-stage{max-height:55vh}
+}

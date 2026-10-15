@@ -578,126 +578,344 @@
     ctx.closePath();
   }
 
-  function performanceShareBlob(stats, evolution, sequence) {
-    return new Promise(resolve => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1080;
-      canvas.height = 1920;
-      const ctx = canvas.getContext('2d');
+  function drawSystemShareBackground(ctx, width, height) {
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, '#141517');
+    bg.addColorStop(.48, '#0b0c0e');
+    bg.addColorStop(1, '#17110d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
 
-      const bg = ctx.createLinearGradient(0, 0, 1080, 1920);
-      bg.addColorStop(0, '#121315');
-      bg.addColorStop(.55, '#0c0d0f');
-      bg.addColorStop(1, '#17110d');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, 1080, 1920);
+    const sunset = ctx.createRadialGradient(width * .82, height * .43, 10, width * .82, height * .43, width * .55);
+    sunset.addColorStop(0, 'rgba(255,139,45,.50)');
+    sunset.addColorStop(.28, 'rgba(239,94,0,.20)');
+    sunset.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sunset;
+    ctx.fillRect(0, 0, width, height);
 
-      ctx.strokeStyle = 'rgba(255,120,23,.28)';
-      ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(255,151,66,.72)';
+    ctx.beginPath();
+    ctx.arc(width * .82, height * .43, 58, 0, Math.PI * 2);
+    ctx.fill();
+
+    function mountain(points, fill) {
+      ctx.fillStyle = fill;
       ctx.beginPath();
-      ctx.arc(-30, 100, 260, -.8, 1.1);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(1080, 720, 330, 2.1, 4.7);
-      ctx.stroke();
-
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#f5f5f5';
-      ctx.font = '600 48px Arial';
-      ctx.fillText('R O U T I N E', 540, 120);
-
-      ctx.font = '800 76px Arial';
-      ctx.fillStyle = '#f5f5f5';
-      ctx.fillText('Meu', 355, 245);
-      ctx.fillStyle = '#ff7a1a';
-      ctx.fillText('desempenho', 680, 245);
-
-      const cx = 540, cy = 650, radius = 225;
-      ctx.lineWidth = 34;
-      ctx.strokeStyle = '#292b2f';
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
-      ctx.stroke();
-
-      const ring = ctx.createLinearGradient(330, 430, 760, 850);
-      ring.addColorStop(0, '#ffb14f');
-      ring.addColorStop(1, '#ef5e00');
-      ctx.strokeStyle = ring;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (stats.adherence / 100));
-      ctx.stroke();
-      ctx.lineCap = 'butt';
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '800 145px Arial';
-      ctx.fillText(stats.adherence + '%', cx, cy + 25);
-      ctx.font = '500 34px Arial';
-      ctx.fillStyle = '#c4c6ca';
-      ctx.fillText('ADERÊNCIA', cx, cy + 95);
-
-      const cards = [
-        {x:70,y:980,w:450,h:220,value:`${stats.completedActivities} / ${stats.totalActivities}`,label:'ATIVIDADES CONCLUÍDAS',accent:'#ff7a1a'},
-        {x:560,y:980,w:450,h:220,value:`${sequence}`,label:'DIAS DE SEQUÊNCIA',accent:'#ff7a1a'},
-        {x:70,y:1235,w:450,h:220,value:signedPercent(evolution),label:'DE EVOLUÇÃO',accent:'#43d889'},
-        {x:560,y:1235,w:450,h:220,value:`${stats.consistentDays} / ${stats.plannedDays}`,label:'DIAS CONSISTENTES',accent:'#ff7a1a'}
-      ];
-
-      cards.forEach(card => {
-        roundRectPath(ctx, card.x, card.y, card.w, card.h, 28);
-        ctx.fillStyle = 'rgba(28,29,32,.94)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,.14)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.fillStyle = card.accent;
-        ctx.beginPath();
-        ctx.arc(card.x + 68, card.y + 72, 26, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '800 58px Arial';
-        ctx.fillText(card.value, card.x + 125, card.y + 100);
-        ctx.fillStyle = '#aeb1b6';
-        ctx.font = '500 25px Arial';
-        ctx.fillText(card.label, card.x + 125, card.y + 150);
-      });
-
-      roundRectPath(ctx, 70, 1510, 940, 230, 30);
-      const callout = ctx.createLinearGradient(70, 1510, 1010, 1740);
-      callout.addColorStop(0, '#1d1b19');
-      callout.addColorStop(1, '#32190d');
-      ctx.fillStyle = callout;
+      ctx.moveTo(0, height * .52);
+      points.forEach(([x,y]) => ctx.lineTo(width * x, height * y));
+      ctx.lineTo(width, height * .58);
+      ctx.lineTo(width, height);
+      ctx.lineTo(0, height);
+      ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,120,23,.55)';
-      ctx.stroke();
+    }
 
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '800 52px Arial';
-      ctx.fillText('Meu ritmo, meus resultados.', 540, 1605);
-      ctx.fillStyle = '#ff7a1a';
-      ctx.font = '700 38px Arial';
-      ctx.fillText(`${stats.adherence}% de aderência nos últimos 30 dias`, 540, 1670);
+    mountain([
+      [.06,.47],[.14,.43],[.22,.49],[.31,.44],[.40,.50],[.52,.45],
+      [.62,.51],[.72,.47],[.80,.50],[.89,.42],[.95,.47]
+    ], '#111214');
 
-      const month = new Intl.DateTimeFormat('pt-BR', { month:'long', year:'numeric' }).format(new Date()).toUpperCase();
-      ctx.fillStyle = '#8e9299';
-      ctx.font = '500 28px Arial';
-      ctx.fillText(month, 540, 1835);
+    mountain([
+      [.02,.50],[.10,.46],[.18,.52],[.27,.48],[.37,.54],[.48,.49],
+      [.58,.55],[.70,.50],[.81,.54],[.91,.48],[.98,.52]
+    ], '#08090a');
 
-      canvas.toBlob(blob => resolve(blob), 'image/png', 0.96);
-    });
+    const vignette = ctx.createRadialGradient(width / 2, height * .48, width * .12, width / 2, height * .48, width * .72);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,.58)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
   }
 
-  async function sharePerformanceResults() {
+  function drawImageCover(ctx, image, width, height) {
+    const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+    const sourceWidth = width / scale;
+    const sourceHeight = height / scale;
+    const sourceX = (image.naturalWidth - sourceWidth) / 2;
+    const sourceY = (image.naturalHeight - sourceHeight) / 2;
+
+    ctx.save();
+    ctx.filter = 'brightness(.54) saturate(.9) contrast(1.08)';
+    ctx.drawImage(
+      image,
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, width, height
+    );
+    ctx.restore();
+
+    const overlay = ctx.createLinearGradient(0, 0, 0, height);
+    overlay.addColorStop(0, 'rgba(8,9,11,.58)');
+    overlay.addColorStop(.40, 'rgba(8,9,11,.24)');
+    overlay.addColorStop(.72, 'rgba(8,9,11,.44)');
+    overlay.addColorStop(1, 'rgba(8,9,11,.78)');
+    ctx.fillStyle = overlay;
+    ctx.fillRect(0, 0, width, height);
+
+    const warm = ctx.createRadialGradient(width * .82, height * .42, 0, width * .82, height * .42, width * .50);
+    warm.addColorStop(0, 'rgba(255,120,23,.22)');
+    warm.addColorStop(1, 'rgba(255,120,23,0)');
+    ctx.fillStyle = warm;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function drawShareTitle(ctx, canvasWidth) {
+    const meuText = 'Meu';
+    const desempenhoText = 'desempenho';
+    const gap = 24;
+
+    ctx.font = '800 76px Arial';
+    const meuWidth = ctx.measureText(meuText).width;
+    const desempenhoWidth = ctx.measureText(desempenhoText).width;
+    const totalWidth = meuWidth + gap + desempenhoWidth;
+    const startX = (canvasWidth - totalWidth) / 2;
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillText(meuText, startX, 245);
+    ctx.fillStyle = '#ff7a1a';
+    ctx.fillText(desempenhoText, startX + meuWidth + gap, 245);
+  }
+
+  function drawShareMetricIcon(ctx, x, y, accent) {
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(x, y, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#111214';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(x - 10, y);
+    ctx.lineTo(x - 2, y + 8);
+    ctx.lineTo(x + 12, y - 9);
+    ctx.stroke();
+  }
+
+  async function performanceShareBlob(stats, evolution, sequence, backgroundImage = null) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+
+    if (backgroundImage) drawImageCover(ctx, backgroundImage, canvas.width, canvas.height);
+    else drawSystemShareBackground(ctx, canvas.width, canvas.height);
+
+    ctx.strokeStyle = 'rgba(255,120,23,.30)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-30, 100, 260, -.8, 1.1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(1080, 720, 330, 2.1, 4.7);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f5f5f5';
+    ctx.font = '600 48px Arial';
+    ctx.fillText('R O U T I N E', 540, 120);
+
+    drawShareTitle(ctx, canvas.width);
+
+    ctx.fillStyle = '#bfc1c5';
+    ctx.font = '500 25px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('DISCIPLINA HOJE. UMA VIDA MELHOR AMANHÃ.', 540, 315);
+
+    const cx = 540, cy = 650, radius = 225;
+    ctx.lineWidth = 34;
+    ctx.strokeStyle = 'rgba(54,56,60,.86)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
+    ctx.stroke();
+
+    const ring = ctx.createLinearGradient(330, 430, 760, 850);
+    ring.addColorStop(0, '#ffb14f');
+    ring.addColorStop(1, '#ef5e00');
+    ctx.strokeStyle = ring;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (stats.adherence / 100));
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    ctx.fillStyle = 'rgba(10,11,13,.58)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius - 23, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 145px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(stats.adherence + '%', cx, cy + 25);
+    ctx.font = '500 34px Arial';
+    ctx.fillStyle = '#d2d4d7';
+    ctx.fillText('ADERÊNCIA', cx, cy + 95);
+
+    const cards = [
+      {x:70,y:980,w:450,h:220,value:`${stats.completedActivities} / ${stats.totalActivities}`,label:'ATIVIDADES CONCLUÍDAS',accent:'#ff7a1a'},
+      {x:560,y:980,w:450,h:220,value:`${sequence}`,label:'DIAS DE SEQUÊNCIA',accent:'#ff7a1a'},
+      {x:70,y:1235,w:450,h:220,value:signedPercent(evolution),label:'DE EVOLUÇÃO',accent:evolution < 0 ? '#ff6675' : '#43d889'},
+      {x:560,y:1235,w:450,h:220,value:`${stats.consistentDays} / ${stats.plannedDays}`,label:'DIAS CONSISTENTES',accent:'#ff7a1a'}
+    ];
+
+    cards.forEach(card => {
+      roundRectPath(ctx, card.x, card.y, card.w, card.h, 28);
+      ctx.fillStyle = 'rgba(15,16,18,.82)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.18)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      drawShareMetricIcon(ctx, card.x + 68, card.y + 72, card.accent);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 58px Arial';
+      ctx.fillText(card.value, card.x + 125, card.y + 100);
+      ctx.fillStyle = '#c0c3c7';
+      ctx.font = '500 25px Arial';
+      ctx.fillText(card.label, card.x + 125, card.y + 150);
+    });
+
+    roundRectPath(ctx, 70, 1510, 940, 230, 30);
+    const callout = ctx.createLinearGradient(70, 1510, 1010, 1740);
+    callout.addColorStop(0, 'rgba(20,20,21,.90)');
+    callout.addColorStop(1, 'rgba(50,25,13,.90)');
+    ctx.fillStyle = callout;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,120,23,.58)';
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 52px Arial';
+    ctx.fillText('Meu melhor ritmo até agora.', 540, 1605);
+    ctx.fillStyle = '#ff7a1a';
+    ctx.font = '700 38px Arial';
+    ctx.fillText(`${stats.adherence}% de aderência nos últimos 30 dias`, 540, 1670);
+
+    const month = new Intl.DateTimeFormat('pt-BR', { month:'long', year:'numeric' }).format(new Date()).toUpperCase();
+    ctx.fillStyle = '#a0a3a8';
+    ctx.font = '500 28px Arial';
+    ctx.fillText(month, 540, 1835);
+
+    return await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/png', 0.96));
+  }
+
+  function openPerformanceShareModal() {
+    stopPerformanceCamera();
+    $('#shareSourceStep').hidden = false;
+    $('#shareCustomStep').hidden = true;
+    $('#shareCameraStep').hidden = true;
+    $('#performanceShareModal').classList.add('open');
+    $('#performanceShareModal').setAttribute('aria-hidden', 'false');
+  }
+
+  function closePerformanceShareModal() {
+    stopPerformanceCamera();
+    $('#performanceShareModal').classList.remove('open');
+    $('#performanceShareModal').setAttribute('aria-hidden', 'true');
+  }
+
+  function showShareStep(step) {
+    $('#shareSourceStep').hidden = step !== 'source';
+    $('#shareCustomStep').hidden = step !== 'custom';
+    $('#shareCameraStep').hidden = step !== 'camera';
+  }
+
+  let performanceCameraStream = null;
+
+  function stopPerformanceCamera() {
+    performanceCameraStream?.getTracks().forEach(track => track.stop());
+    performanceCameraStream = null;
+    const video = $('#shareCameraVideo');
+    if (video) video.srcObject = null;
+  }
+
+  async function openPerformanceCamera() {
+    stopPerformanceCamera();
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      $('#shareCameraFallbackInput').click();
+      return;
+    }
+
+    try {
+      showShareStep('camera');
+      $('#shareCameraStatus').textContent = 'Posicione a câmera e capture a foto.';
+      performanceCameraStream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ ideal:'environment' } },
+        audio:false
+      });
+      $('#shareCameraVideo').srcObject = performanceCameraStream;
+      await $('#shareCameraVideo').play();
+    } catch {
+      showShareStep('custom');
+      $('#shareCameraFallbackInput').click();
+    }
+  }
+
+  async function imageFromBlob(blob) {
+    const url = URL.createObjectURL(blob);
+    try {
+      const image = new Image();
+      image.decoding = 'async';
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = url;
+      });
+      return image;
+    } finally {
+      // O Image mantém os pixels carregados mesmo após a revogação da URL.
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+  }
+
+  async function imageFromFile(file) {
+    if (!file || !String(file.type || '').startsWith('image/'))
+      throw new Error('Selecione uma imagem válida.');
+    return await imageFromBlob(file);
+  }
+
+  async function capturePerformancePhoto() {
+    const video = $('#shareCameraVideo');
+    if (!video.videoWidth || !video.videoHeight) {
+      toast('A câmera ainda está iniciando');
+      return;
+    }
+
+    const capture = document.createElement('canvas');
+    capture.width = video.videoWidth;
+    capture.height = video.videoHeight;
+    capture.getContext('2d').drawImage(video, 0, 0, capture.width, capture.height);
+
+    const blob = await new Promise(resolve => capture.toBlob(resolve, 'image/jpeg', 0.94));
+    stopPerformanceCamera();
+    closePerformanceShareModal();
+
+    if (!blob) {
+      toast('Não foi possível capturar a foto');
+      return;
+    }
+
+    try {
+      const image = await imageFromBlob(blob);
+      await generateAndSharePerformance(image);
+    } catch {
+      toast('Não foi possível usar a fotografia');
+    }
+  }
+
+  async function generateAndSharePerformance(backgroundImage = null) {
     const ref = new Date();
     const current = performancePeriodStats(ref, 30, 0);
     const previous = performancePeriodStats(ref, 30, 30);
     const evolution = current.adherence - previous.adherence;
     const sequence = streak(ref);
-    const blob = await performanceShareBlob(current, evolution, sequence);
+
+    toast('Preparando seu card...');
+    const blob = await performanceShareBlob(current, evolution, sequence, backgroundImage);
     if (!blob) return;
 
     const filename = `routine-desempenho-${key(ref)}.png`;
@@ -725,6 +943,24 @@
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
     toast('Card de desempenho gerado');
+  }
+
+  async function usePerformanceImageFile(file) {
+    if (!file) return;
+    try {
+      const image = await imageFromFile(file);
+      closePerformanceShareModal();
+      await generateAndSharePerformance(image);
+    } catch (err) {
+      toast(err.message || 'Não foi possível usar a imagem');
+    } finally {
+      $('#shareGalleryInput').value = '';
+      $('#shareCameraFallbackInput').value = '';
+    }
+  }
+
+  function sharePerformanceResults() {
+    openPerformanceShareModal();
   }
 
   function renderHistory() {
@@ -1368,6 +1604,25 @@
   };
 
   $('#sharePerformance').onclick = sharePerformanceResults;
+  $('#closePerformanceShareModal').onclick = closePerformanceShareModal;
+  $('#performanceShareModal').addEventListener('click', e => {
+    if (e.target === $('#performanceShareModal')) closePerformanceShareModal();
+  });
+  $('#shareSystemBackground').onclick = async () => {
+    closePerformanceShareModal();
+    await generateAndSharePerformance();
+  };
+  $('#shareCustomBackground').onclick = () => showShareStep('custom');
+  $('#shareCustomBack').onclick = () => showShareStep('source');
+  $('#shareOpenGallery').onclick = () => $('#shareGalleryInput').click();
+  $('#shareOpenCamera').onclick = openPerformanceCamera;
+  $('#shareCameraBack').onclick = () => {
+    stopPerformanceCamera();
+    showShareStep('custom');
+  };
+  $('#shareCapturePhoto').onclick = capturePerformancePhoto;
+  $('#shareGalleryInput').addEventListener('change', e => usePerformanceImageFile(e.target.files?.[0]));
+  $('#shareCameraFallbackInput').addEventListener('change', e => usePerformanceImageFile(e.target.files?.[0]));
 
   $('#prevDay').onclick = () => { selected = addDays(selected, -1); renderToday(); };
   $('#nextDay').onclick = () => { selected = addDays(selected, 1); renderToday(); };
