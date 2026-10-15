@@ -14,6 +14,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>().HasIndex(x => x.Login).IsUnique();
+        modelBuilder.Entity<User>()
+            .HasIndex(x => x.NormalizedEmail)
+            .IsUnique()
+            .HasDatabaseName("IX_Users_NormalizedEmail")
+            .HasFilter("[NormalizedEmail] IS NOT NULL");
 
         modelBuilder.Entity<Activity>()
             .HasOne(x => x.User)

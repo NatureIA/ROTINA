@@ -7,6 +7,8 @@ public class User
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     [MaxLength(80)] public string Login { get; set; } = string.Empty;
+    [MaxLength(254)] public string? Email { get; set; }
+    [MaxLength(254)] public string? NormalizedEmail { get; set; }
     [MaxLength(500)] public string PasswordHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Activity> Activities { get; set; } = new List<Activity>();
@@ -84,8 +86,8 @@ public class TaskChecklistItem
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public record LoginRequest(string Login, string Password);
-public record LoginResponse(string Token, string Login);
+public record LoginRequest(string? Email, string? Password, string? Login = null);
+public record LoginResponse(string Token, string Email);
 public record ExecutionRequest(string Status);
 public record RoutineTaskRequest(
     string? Title,
