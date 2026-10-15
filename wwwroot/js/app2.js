@@ -579,50 +579,102 @@
   }
 
   function drawSystemShareBackground(ctx, width, height) {
-    const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0, '#141517');
-    bg.addColorStop(.48, '#0b0c0e');
-    bg.addColorStop(1, '#17110d');
-    ctx.fillStyle = bg;
+    // Fundo oficial do card padrão: céu escuro, pôr do sol laranja e montanhas.
+    const sky = ctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, '#17191c');
+    sky.addColorStop(.18, '#101214');
+    sky.addColorStop(.37, '#0c0d0f');
+    sky.addColorStop(.48, '#17100d');
+    sky.addColorStop(.62, '#0a0b0c');
+    sky.addColorStop(1, '#08090a');
+    ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
 
-    const sunset = ctx.createRadialGradient(width * .82, height * .43, 10, width * .82, height * .43, width * .55);
-    sunset.addColorStop(0, 'rgba(255,139,45,.50)');
-    sunset.addColorStop(.28, 'rgba(239,94,0,.20)');
-    sunset.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = sunset;
+    const horizonGlow = ctx.createRadialGradient(
+      width * .80, height * .43, 8,
+      width * .80, height * .43, width * .62
+    );
+    horizonGlow.addColorStop(0, 'rgba(255,181,88,.88)');
+    horizonGlow.addColorStop(.10, 'rgba(255,125,30,.54)');
+    horizonGlow.addColorStop(.30, 'rgba(190,64,8,.26)');
+    horizonGlow.addColorStop(.62, 'rgba(73,26,10,.10)');
+    horizonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = horizonGlow;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = 'rgba(255,151,66,.72)';
+    const cloudGlow = ctx.createLinearGradient(0, height * .34, 0, height * .52);
+    cloudGlow.addColorStop(0, 'rgba(255,112,20,0)');
+    cloudGlow.addColorStop(.48, 'rgba(255,104,18,.10)');
+    cloudGlow.addColorStop(1, 'rgba(255,86,0,0)');
+    ctx.fillStyle = cloudGlow;
+    ctx.fillRect(0, height * .30, width, height * .25);
+
+    const sunX = width * .825;
+    const sunY = height * .445;
+    const sunRadius = 62;
+
+    const sunHalo = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 145);
+    sunHalo.addColorStop(0, 'rgba(255,220,145,.92)');
+    sunHalo.addColorStop(.22, 'rgba(255,146,57,.64)');
+    sunHalo.addColorStop(1, 'rgba(255,112,23,0)');
+    ctx.fillStyle = sunHalo;
+    ctx.fillRect(sunX - 160, sunY - 160, 320, 320);
+
+    ctx.fillStyle = '#ffb357';
     ctx.beginPath();
-    ctx.arc(width * .82, height * .43, 58, 0, Math.PI * 2);
+    ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    function mountain(points, fill) {
+    function drawMountain(points, fill, shadow = null) {
+      ctx.save();
+      if (shadow) {
+        ctx.shadowColor = shadow;
+        ctx.shadowBlur = 32;
+      }
       ctx.fillStyle = fill;
       ctx.beginPath();
-      ctx.moveTo(0, height * .52);
+      ctx.moveTo(0, height * .54);
       points.forEach(([x,y]) => ctx.lineTo(width * x, height * y));
-      ctx.lineTo(width, height * .58);
+      ctx.lineTo(width, height * .56);
       ctx.lineTo(width, height);
       ctx.lineTo(0, height);
       ctx.closePath();
       ctx.fill();
+      ctx.restore();
     }
 
-    mountain([
-      [.06,.47],[.14,.43],[.22,.49],[.31,.44],[.40,.50],[.52,.45],
-      [.62,.51],[.72,.47],[.80,.50],[.89,.42],[.95,.47]
-    ], '#111214');
+    drawMountain([
+      [.02,.475],[.075,.455],[.12,.420],[.17,.470],[.22,.447],[.27,.485],
+      [.33,.452],[.39,.492],[.46,.462],[.53,.505],[.61,.472],[.68,.505],
+      [.75,.475],[.81,.500],[.86,.444],[.91,.412],[.96,.455]
+    ], '#17181a', 'rgba(255,103,17,.12)');
 
-    mountain([
-      [.02,.50],[.10,.46],[.18,.52],[.27,.48],[.37,.54],[.48,.49],
-      [.58,.55],[.70,.50],[.81,.54],[.91,.48],[.98,.52]
-    ], '#08090a');
+    drawMountain([
+      [.00,.505],[.06,.480],[.13,.452],[.19,.505],[.26,.472],[.33,.520],
+      [.40,.484],[.48,.531],[.57,.489],[.64,.536],[.72,.496],[.79,.526],
+      [.86,.474],[.93,.450],[1,.508]
+    ], '#0e0f10');
 
-    const vignette = ctx.createRadialGradient(width / 2, height * .48, width * .12, width / 2, height * .48, width * .72);
+    drawMountain([
+      [.00,.535],[.08,.508],[.15,.485],[.23,.540],[.31,.505],[.39,.552],
+      [.48,.516],[.57,.558],[.66,.523],[.75,.559],[.83,.520],[.91,.500],[1,.548]
+    ], '#070809');
+
+    ctx.strokeStyle = 'rgba(255,117,31,.18)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(width * .80, height * .515);
+    ctx.lineTo(width * .865, height * .445);
+    ctx.lineTo(width * .925, height * .486);
+    ctx.stroke();
+
+    const vignette = ctx.createRadialGradient(
+      width / 2, height * .45, width * .10,
+      width / 2, height * .45, width * .78
+    );
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,.58)');
+    vignette.addColorStop(.72, 'rgba(0,0,0,.16)');
+    vignette.addColorStop(1, 'rgba(0,0,0,.72)');
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
   }
@@ -750,6 +802,13 @@
     ctx.font = '500 34px Arial';
     ctx.fillStyle = '#d2d4d7';
     ctx.fillText('ADERÊNCIA', cx, cy + 95);
+
+    ctx.fillStyle = '#42dc8a';
+    const glyphBaseY = cy + 150;
+    [22,34,49].forEach((h, i) => {
+      const x = cx - 28 + i * 22;
+      ctx.fillRect(x, glyphBaseY - h, 10, h);
+    });
 
     const cards = [
       {x:70,y:980,w:450,h:220,value:`${stats.completedActivities} / ${stats.totalActivities}`,label:'ATIVIDADES CONCLUÍDAS',accent:'#ff7a1a'},
