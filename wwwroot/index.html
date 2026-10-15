@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ROUTINE 2.0</title>
   <link rel="stylesheet" href="/css/style.css?v=20261002-6">
-  <link rel="stylesheet" href="/css/routine2.css?v=20261014-6">
+  <link rel="stylesheet" href="/css/routine2.css?v=20261015-1">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#111214">
   <meta name="application-name" content="ROUTINE">
@@ -352,8 +352,74 @@
   <div id="drawerBody"></div>
 </div>
 
+
+<div class="modal share-modal" id="performanceShareModal" aria-hidden="true">
+  <div class="modalcard share-modal-card" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+    <div class="modalhead">
+      <div><span class="eyebrow">COMPARTILHAR</span><h2 id="shareModalTitle">Escolha o fundo do resultado</h2></div>
+      <button type="button" id="closePerformanceShareModal" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="share-step" id="shareSourceStep">
+      <p class="share-helper">Escolha como deseja montar a imagem do seu desempenho.</p>
+      <div class="share-choice-grid">
+        <button class="share-choice" id="shareSystemBackground" type="button">
+          <span class="share-choice-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="m4 15 4-4 4 4 3-3 5 5"></path><circle cx="15.5" cy="8.5" r="1.5"></circle></svg>
+          </span>
+          <strong>Imagem padrão</strong>
+          <small>Visual oficial do ROUTINE, inspirado no modelo padrão do sistema.</small>
+        </button>
+
+        <button class="share-choice" id="shareCustomBackground" type="button">
+          <span class="share-choice-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="m4 15 4-4 4 4 3-3 5 5"></path><path d="M18 3v4M16 5h4"></path></svg>
+          </span>
+          <strong>Imagem personalizada</strong>
+          <small>Use uma fotografia sua como fundo do card.</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="share-step" id="shareCustomStep" hidden>
+      <button class="share-back" id="shareCustomBack" type="button">← Voltar</button>
+      <p class="share-helper">Como você quer escolher a fotografia?</p>
+      <div class="share-choice-grid">
+        <button class="share-choice" id="shareOpenCamera" type="button">
+          <span class="share-choice-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4l1.5-2h5L16 7h4v12H4z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </span>
+          <strong>Tirar foto agora</strong>
+          <small>Abra a câmera e faça uma fotografia para o fundo.</small>
+        </button>
+
+        <button class="share-choice" id="shareOpenGallery" type="button">
+          <span class="share-choice-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m4 18 5-5 3 3 2-2 6 5"></path></svg>
+          </span>
+          <strong>Escolher da galeria</strong>
+          <small>Selecione uma imagem já existente no aparelho.</small>
+        </button>
+      </div>
+      <input class="share-file-input" id="shareGalleryInput" type="file" accept="image/*">
+      <input class="share-file-input" id="shareCameraFallbackInput" type="file" accept="image/*" capture="environment">
+    </div>
+
+    <div class="share-step share-camera-step" id="shareCameraStep" hidden>
+      <div class="share-camera-head">
+        <button class="share-back" id="shareCameraBack" type="button">← Voltar</button>
+        <span id="shareCameraStatus">Posicione a câmera e capture a foto.</span>
+      </div>
+      <div class="share-camera-stage">
+        <video id="shareCameraVideo" autoplay playsinline muted></video>
+      </div>
+      <button class="btn primary full share-capture-btn" id="shareCapturePhoto" type="button">Capturar foto</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
-<script src="/js/app2.js?v=20261014-15"></script>
+<script src="/js/app2.js?v=20261015-2"></script>
 <script src="/js/pwa.js?v=2"></script>
 </body>
 </html>
