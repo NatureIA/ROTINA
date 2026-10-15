@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.StaticFiles;
@@ -132,29 +133,70 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
                 var seeds = new[]
                 {
-                    new { Login = app.Configuration["SeedUsers:User1Login"] ?? "acesso1", Password = app.Configuration["SeedUsers:User1Password"] ?? "" },
-                    new { Login = app.Configuration["SeedUsers:User2Login"] ?? "acesso2", Password = app.Configuration["SeedUsers:User2Password"] ?? "" }
+                    new
+                    {
+                        LegacyLogin = app.Configuration["SeedUsers:User1Login"] ?? "acesso1",
+                        Email = app.Configuration["SeedUsers:User1Email"] ?? "",
+                        Password = app.Configuration["SeedUsers:User1Password"] ?? ""
+                    },
+                    new
+                    {
+                        LegacyLogin = app.Configuration["SeedUsers:User2Login"] ?? "acesso2",
+                        Email = app.Configuration["SeedUsers:User2Email"] ?? "",
+                        Password = app.Configuration["SeedUsers:User2Password"] ?? ""
+                    }
                 };
 
                 foreach (var seed in seeds)
                 {
                     if (string.IsNullOrWhiteSpace(seed.Password)) continue;
 
-                    var normalized = seed.Login.Trim().ToLowerInvariant();
-                    var existing = await db.Users.FirstOrDefaultAsync(x => x.Login.ToLower() == normalized);
+                    var legacyLogin = seed.LegacyLogin.Trim();
+                    var hasValidEmail = TryNormalizeEmail(seed.Email, out var email, out var normalizedEmail);
+
+                    User? existing = null;
+
+                    if (hasValidEmail)
+                    {
+                        existing = await db.Users.FirstOrDefaultAsync(
+                            x => x.NormalizedEmail == normalizedEmail);
+                    }
+
+                    existing ??= await db.Users.FirstOrDefaultAsync(
+                        x => x.Login.ToLower() == legacyLogin.ToLower());
 
                     if (existing is null)
                     {
-                        db.Users.Add(new User
+                        // A partir desta versão, contas novas só são criadas com e-mail válido.
+                        if (!hasValidEmail) continue;
+
+                        existing = new User
                         {
                             Id = Guid.NewGuid(),
-                            Login = seed.Login.Trim(),
+                            Login = email,
+                            Email = email,
+                            NormalizedEmail = normalizedEmail,
                             PasswordHash = PasswordTools.Hash(seed.Password)
-                        });
+                        };
+                        db.Users.Add(existing);
                     }
-                    else if (!PasswordTools.Verify(seed.Password, existing.PasswordHash))
+                    else
                     {
-                        existing.PasswordHash = PasswordTools.Hash(seed.Password);
+                        if (hasValidEmail)
+                        {
+                            var emailInUse = await db.Users.AnyAsync(x =>
+                                x.Id != existing.Id &&
+                                x.NormalizedEmail == normalizedEmail);
+
+                            if (emailInUse)
+                                throw new InvalidOperationException($"O e-mail configurado para {legacyLogin} já está em uso.");
+
+                            existing.Email = email;
+                            existing.NormalizedEmail = normalizedEmail;
+                        }
+
+                        if (!PasswordTools.Verify(seed.Password, existing.PasswordHash))
+                            existing.PasswordHash = PasswordTools.Hash(seed.Password);
                     }
                 }
 
@@ -193,6 +235,20 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
 await app.RunAsync();
 
+static bool TryNormalizeEmail(string? value, out string email, out string normalizedEmail)
+{
+    email = string.Empty;
+    normalizedEmail = string.Empty;
+
+    var candidate = (value ?? string.Empty).Trim();
+    if (!MailAddress.TryCreate(candidate, out var address)) return false;
+    if (!string.Equals(address.Address, candidate, StringComparison.OrdinalIgnoreCase)) return false;
+
+    email = address.Address.Trim();
+    normalizedEmail = email.ToLowerInvariant();
+    return true;
+}
+
 static async Task EnsureRoutine2SchemaAsync(AppDbContext db, Action<string> setStep)
 {
     async Task Run(string step, string sql)
@@ -200,6 +256,35 @@ static async Task EnsureRoutine2SchemaAsync(AppDbContext db, Action<string> setS
         setStep(step);
         await db.Database.ExecuteSqlRawAsync(sql);
     }
+
+    await Run("users-email", """
+IF COL_LENGTH(N'Users', N'Email') IS NULL
+    ALTER TABLE [Users] ADD [Email] nvarchar(254) NULL;
+""");
+
+    await Run("users-normalized-email", """
+IF COL_LENGTH(N'Users', N'NormalizedEmail') IS NULL
+    ALTER TABLE [Users] ADD [NormalizedEmail] nvarchar(254) NULL;
+""");
+
+    await Run("users-normalize-email-data", """
+UPDATE [Users]
+SET [NormalizedEmail] = LOWER(LTRIM(RTRIM([Email])))
+WHERE [Email] IS NOT NULL
+  AND LTRIM(RTRIM([Email])) <> N''
+  AND ([NormalizedEmail] IS NULL OR [NormalizedEmail] <> LOWER(LTRIM(RTRIM([Email]))));
+""");
+
+    await Run("users-email-index", """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_Users_NormalizedEmail'
+      AND object_id = OBJECT_ID(N'[Users]')
+)
+    CREATE UNIQUE INDEX [IX_Users_NormalizedEmail]
+        ON [Users] ([NormalizedEmail])
+        WHERE [NormalizedEmail] IS NOT NULL;
+""");
 
     await Run("activities-client-request-id", """
 IF COL_LENGTH(N'Activities', N'ClientRequestId') IS NULL
