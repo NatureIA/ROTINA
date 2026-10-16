@@ -185,6 +185,121 @@ public class RoutineController(AppDbContext db) : ControllerBase
         return Ok(item);
     }
 
+    // O acompanhamento dos hábitos é isolado das estruturas legadas da ROUTINE 3.1.
+    [HttpGet("habits/tracking")]
+    public async Task<IActionResult> HabitTracking()
+    {
+        var from = DateTime.UtcNow.AddDays(-400).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var goals = await db.HabitGoals.AsNoTracking()
+            .Where(x => x.UserId == UserId).ToListAsync();
+        var entries = await db.HabitEntries.AsNoTracking()
+            .Where(x => x.UserId == UserId && string.Compare(x.Date, from) >= 0)
+            .ToListAsync();
+
+        return Ok(new { goals, entries });
+    }
+
+    [HttpPut("habits/{activityId:guid}/goal")]
+    public async Task<IActionResult> SetHabitGoal(Guid activityId, HabitGoalRequest request)
+    {
+        var activity = await db.Activities.AsNoTracking().FirstOrDefaultAsync(
+            x => x.Id == activityId && x.UserId == UserId && x.ArchivedAt == null && x.Type == "habit");
+        if (activity is null) return NotFound();
+
+        var mode = (request.Mode ?? string.Empty).Trim().ToLowerInvariant();
+        if (mode is not ("check" or "quantity" or "duration"))
+            return BadRequest(new { message = "Forma de acompanhamento inválida." });
+        if (request.CycleDays is not (21 or 30 or 60 or 90))
+            return BadRequest(new { message = "Escolha um ciclo de 21, 30, 60 ou 90 dias." });
+        if (request.Target <= 0 || request.Target > 100000)
+            return BadRequest(new { message = "A meta precisa ser maior que zero e menor que 100.000." });
+
+        var target = mode == "check" ? 1m : Math.Round(request.Target, 2);
+        if (target <= 0) return BadRequest(new { message = "Meta inválida." });
+        var unit = mode == "duration" ? "min" : mode == "check" ? "vez" : (request.Unit ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(unit) || unit.Length > 20)
+            return BadRequest(new { message = "Informe uma unidade com até 20 caracteres." });
+
+        var goal = await db.HabitGoals.FirstOrDefaultAsync(
+            x => x.UserId == UserId && x.ActivityId == activityId);
+        if (goal is null)
+        {
+            goal = new HabitGoal { ActivityId = activityId, UserId = UserId };
+            db.HabitGoals.Add(goal);
+        }
+        goal.Mode = mode;
+        goal.Target = target;
+        goal.Unit = unit;
+        goal.CycleDays = request.CycleDays;
+        await db.SaveChangesAsync();
+        return Ok(goal);
+    }
+
+    [HttpPut("habits/{activityId:guid}/progress/{date}")]
+    public async Task<IActionResult> SetHabitProgress(Guid activityId, string date, HabitEntryRequest request)
+    {
+        if (!DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var parsed))
+            return BadRequest(new { message = "Data inválida." });
+
+        if (request.Value < 0 || request.Value > 1000000)
+            return BadRequest(new { message = "Quantidade inválida." });
+
+        var activity = await db.Activities.AsNoTracking().FirstOrDefaultAsync(
+            x => x.Id == activityId && x.UserId == UserId && x.ArchivedAt == null &&
+                 x.Active && x.Type == "habit");
+        if (activity is null) return NotFound();
+
+        var goal = await db.HabitGoals.AsNoTracking().FirstOrDefaultAsync(
+            x => x.ActivityId == activityId && x.UserId == UserId);
+        if (goal is null || goal.Mode == "check")
+            return BadRequest(new { message = "Este hábito não possui uma meta quantitativa." });
+
+        if ((activity.StartDate is not null && string.Compare(date, activity.StartDate) < 0) ||
+            (activity.EndDate is not null && string.Compare(date, activity.EndDate) > 0) ||
+            !activity.Days.Split(',').Contains(((int)parsed.DayOfWeek).ToString(CultureInfo.InvariantCulture)))
+            return BadRequest(new { message = "Este hábito não está programado para a data informada." });
+
+        var value = Math.Round(request.Value, 2);
+        var entry = await db.HabitEntries.FirstOrDefaultAsync(
+            x => x.UserId == UserId && x.ActivityId == activityId && x.Date == date);
+        if (entry is null)
+        {
+            entry = new HabitEntry
+            {
+                Id = Guid.NewGuid(), UserId = UserId, ActivityId = activityId, Date = date
+            };
+            db.HabitEntries.Add(entry);
+        }
+        entry.Value = value;
+        entry.UpdatedAt = DateTime.UtcNow;
+
+        // Mantém o status legado sincronizado, para Histórico/Hoje/Desempenho.
+        var status = value >= goal.Target ? "done" : value > 0 ? "progress" : "pending";
+        var execution = await db.Executions.FirstOrDefaultAsync(
+            x => x.UserId == UserId && x.ActivityId == activityId && x.Date == date);
+        if (status == "pending")
+        {
+            if (execution is not null) db.Executions.Remove(execution);
+        }
+        else if (execution is null)
+        {
+            db.Executions.Add(new Execution
+            {
+                Id = Guid.NewGuid(), UserId = UserId, ActivityId = activityId,
+                Date = date, Status = status, UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            execution.Status = status;
+            execution.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync();
+        return Ok(new { entry, status });
+    }
+
     [HttpGet("tasks")]
     public async Task<IActionResult> Tasks([FromQuery] Guid? activityId = null)
     {
