@@ -2129,7 +2129,16 @@
     const durationMinutes = durationFromRange();
     if (durationMinutes < 5) return alert('O horário final precisa ser diferente do horário inicial.');
 
-    const startDate = $('#activityStart').value || null;
+    const isHabit = $('#activityType').value === 'habit';
+    const habitMode = $('#habitMode').value;
+    const habitTarget = habitMode === 'check' ? 1 : Number($('#habitTarget').value);
+    const habitUnit = habitMode === 'duration' ? 'min' : habitMode === 'check' ? 'vez' : $('#habitUnit').value.trim();
+    if (isHabit && habitMode !== 'check' &&
+        (!Number.isFinite(habitTarget) || habitTarget <= 0 || habitTarget > 100000))
+      return alert('Informe uma meta diária válida.');
+    if (isHabit && !habitUnit) return alert('Informe a unidade da meta.');
+
+    const startDate = $('#activityStart').value || (isHabit && !$('#activityId').value ? todayKey() : null);
     const endDate = $('#activityNoEnd').checked ? null : ($('#activityEnd').value || null);
     if (endDate && startDate && endDate < startDate) return alert('A data final não pode ser anterior à data de início.');
 
@@ -2140,7 +2149,7 @@
     button.textContent = 'Salvando...';
 
     try {
-      await saveActivity({
+      const savedActivity = await saveActivity({
         ...old,
         id:$('#activityId').value || undefined,
         title:$('#activityTitle').value.trim(),
@@ -2156,8 +2165,23 @@
         clientRequestId:old?.clientRequestId || $('#activityRequestId').value || null,
         active:$('#activityActive').checked
       });
+      $('#activityId').value = savedActivity.id;
+      if (isHabit) {
+        const goal = await api('/api/habits/' + savedActivity.id + '/goal', {
+          method:'PUT',
+          body:JSON.stringify({
+            mode:habitMode,
+            target:habitTarget,
+            unit:habitUnit,
+            cycleDays:Number($('#habitCycleDays').value)
+          })
+        });
+        habitGoals.set(savedActivity.id, goal);
+        renderAll();
+      }
       closeActivityModal();
-      toast(old ? 'Atividade atualizada' : 'Atividade criada');
+      toast(old ? (isHabit ? 'Hábito atualizado' : 'Atividade atualizada') :
+        (isHabit ? 'Hábito criado' : 'Atividade criada'));
     } catch (err) {
       alert(err.message);
     } finally {
@@ -2208,6 +2232,8 @@
   $('#activityTime').addEventListener('input', updateDurationPreview);
   $('#activityEndTime').addEventListener('input', updateDurationPreview);
   $('#activityNoEnd').addEventListener('change', syncEndDate);
+  $('#activityType').addEventListener('change', syncHabitGoalFields);
+  $('#habitMode').addEventListener('change', syncHabitGoalFields);
   $('#closeActivityModal').onclick = closeActivityModal;
   $('#cancelActivityModal').onclick = closeActivityModal;
   $('#closeTaskModal').onclick = closeTaskModal;
@@ -2303,12 +2329,15 @@
       $('#currentUser').textContent = me.login || 'Usuário';
 
       const ref = new Date();
+      const habitData = await api('/api/habits/tracking');
       [activities, allActivities, executions, todoTasks] = await Promise.all([
         api('/api/activities'),
         api('/api/activities?includeArchived=true'),
         api(`/api/executions?from=${key(addDays(ref,-220))}&to=${key(addDays(ref,60))}`),
         api('/api/tasks')
       ]);
+      habitGoals = new Map(habitData.goals.map(g => [g.activityId, g]));
+      habitEntries = habitData.entries;
 
       todoTasks.forEach(t => t.checklist ||= []);
       renderAll();
