@@ -1962,6 +1962,7 @@
   function syncHabitGoalFields() {
     const show = $('#activityType').value === 'habit';
     $('#habitGoalFields').hidden = !show;
+    $('#activityForm .modalhead .eyebrow').textContent = show ? 'HÁBITO' : 'ATIVIDADE';
     $('#habitQuantityFields').hidden = !show || $('#habitMode').value === 'check';
     $('#habitUnit').closest('label').hidden = $('#habitMode').value !== 'quantity';
     if ($('#habitMode').value === 'duration') $('#habitUnit').value = 'min';
@@ -1976,6 +1977,7 @@
     $('#activityTime').value = '09:00';
     $('#activityEndTime').value = '09:30';
     $('#activityPriority').value = 'medium';
+    $('#activityType').disabled = false;
     $('#activityType').value = forceHabit ? 'habit' : 'routine';
     $('#habitMode').value = 'check';
     $('#habitCycleDays').value = '21';
@@ -2017,6 +2019,9 @@
       document.querySelectorAll('#daysPicker input').forEach(c => c.checked = days(a).includes(+c.value));
     }
 
+    $('#activityType').disabled = forceHabit || (activeView === 'habits' && $('#activityType').value === 'habit');
+    if (id && $('#activityType').value === 'habit' && activeView === 'habits')
+      $('#modalTitle').textContent = 'Editar hábito';
     syncHabitGoalFields();
     updateDurationPreview();
     $('#activityModal').classList.add('open');
