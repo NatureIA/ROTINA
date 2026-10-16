@@ -6,6 +6,8 @@
   let allActivities = [];
   let executions = [];
   let todoTasks = [];
+  let habitGoals = new Map();
+  let habitEntries = [];
   let selected = new Date();
   selected.setHours(12, 0, 0, 0);
 
@@ -98,6 +100,11 @@
   }
 
   function activityProgress(a, d) {
+    const goal = habitGoals.get(a.id);
+    if (a.type === 'habit' && goal && goal.mode !== 'check') {
+      const entry = habitEntries.find(e => e.activityId === a.id && e.date === key(d));
+      if (entry) return Math.min(100, Math.round(100 * Number(entry.value) / Number(goal.target)));
+    }
     const linked = linkedTasks(a.id, d);
     if (linked.length) {
       const done = linked.filter(t => taskDoneForDate(t, d)).length;
@@ -718,8 +725,22 @@
     bindRoutineActions();
   }
 
+  function habitDateOffset(start, end) {
+    const iso = value => Date.UTC(...value.split('-').map((v, i) => i === 1 ? Number(v) - 1 : Number(v)));
+    return Math.round((iso(end) - iso(start)) / 86400000);
+  }
+
+  function habitCurrentValue(id, date = todayKey()) {
+    return Number(habitEntries.find(e => e.activityId === id && e.date === date)?.value || 0);
+  }
+
+  function habitNumber(value) {
+    return Number(value).toLocaleString('pt-BR', { maximumFractionDigits:2 });
+  }
+
   function renderHabits() {
-    const habits = activities.filter(a => a.type === 'habit' && a.active);
+    const habits = activities.filter(a => a.type === 'habit');
+    const today = todayKey();
     $('#habitList').innerHTML = habits.length ? habits.map(a => {
       const values = [];
       for (let i = 6; i >= 0; i--) {
@@ -728,8 +749,86 @@
       }
       const done = values.filter(Boolean).length;
       const pct = values.length ? Math.round(done / values.length * 100) : 0;
-      return `<div class="habitcard"><div><strong>${esc(a.title)}</strong><small>${esc(a.category)} · ${done}/${values.length} dias completos</small><div class="dots">${values.map(x => `<i class="${x ? 'on' : ''}"></i>`).join('')}</div></div><div class="score">${pct}%</div></div>`;
+      const goal = habitGoals.get(a.id);
+      const activeToday = planned(a, fromKey(today));
+      const dayValue = habitCurrentValue(a.id);
+      let extra = '';
+      if (goal) {
+        const start = a.startDate || key(new Date(a.createdAt || Date.now()));
+        const day = habitDateOffset(start, today) + 1;
+        const cycle = goal.cycleDays;
+        const inCycle = day < 1 ? 'Inicia em ' + short(fromKey(start))
+          : day > cycle ? 'Ciclo de ' + cycle + ' dias concluído — continue!' : 'Dia ' + day + ' de ' + cycle;
+        const dots = Array.from({ length:cycle }, (_, i) => {
+          const date = key(addDays(fromKey(start), i));
+          const scheduled = planned(a, fromKey(date));
+          const doneAtDate = date <= today && scheduled && activityProgress(a, fromKey(date)) === 100;
+          return '<i class="' + (doneAtDate ? 'on' : !scheduled ? 'off' : date > today ? 'future' : '') + '" title="' + short(fromKey(date)) + '"></i>';
+        }).join('');
+        const controls = !a.active || !activeToday ? '' : goal.mode === 'check'
+          ? '<button type="button" class="btn habit-control" data-habit-check="' + esc(a.id) + '">' +
+              (activityProgress(a, fromKey(today)) === 100 ? 'Desmarcar hoje' : 'Marcar hoje') + '</button>'
+          : '<div class="habit-input-row"><input type="number" min="0.01" max="1000000" step="0.01" ' +
+              'aria-label="Quantidade do hábito" placeholder="Quantidade" data-habit-amount="' + esc(a.id) + '">' +
+              '<button type="button" class="btn habit-control" data-habit-add="' + esc(a.id) + '">Adicionar</button>' +
+              '<button type="button" class="btn habit-control" data-habit-adjust="' + esc(a.id) + '">Corrigir total</button></div>';
+        extra = '<div class="habit-tracking">' +
+          '<small>' + esc(inCycle) + (a.active ? '' : ' · Pausado') + '</small>' +
+          (goal.mode !== 'check' ? '<div class="habit-progress-label">' +
+            '<small>Hoje: ' + habitNumber(dayValue) + ' / ' + habitNumber(goal.target) + ' ' + esc(goal.unit) + '</small>' +
+            '<small>' + Math.min(100, Math.round(100 * dayValue / Number(goal.target))) + '%</small></div>' +
+            '<div class="habit-progress-bar"><i style="width:' + Math.min(100, Math.round(100 * dayValue / Number(goal.target))) + '%"></i></div>' : '') +
+          controls + '<div class="dots habit-cycle-dots" aria-label="Dias do ciclo">' + dots + '</div>' +
+          '</div>';
+      }
+      return '<div class="habitcard"><div class="habitcard-content"><strong>' + esc(a.title) + '</strong>' +
+        '<small>' + esc(a.category) + ' · ' + done + '/' + values.length + ' dias completos' +
+        (!a.active && !goal ? ' · Pausado' : '') + '</small>' +
+        '<div class="dots">' + values.map(x => '<i class="' + (x ? 'on' : '') + '"></i>').join('') + '</div>' +
+        extra + '</div><div class="habitcard-side"><div class="score">' + pct + '%</div>' +
+        '<button class="habit-edit" data-habit-edit="' + esc(a.id) + '">Editar</button></div></div>';
     }).join('') : '<div class="empty">Nenhum hábito configurado.</div>';
+
+    $$('[data-habit-edit]').forEach(b => b.onclick = () => openActivityModal(b.dataset.habitEdit));
+    $$('[data-habit-check]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const id = b.dataset.habitCheck;
+      const status = activityProgress(activities.find(a => a.id === id), fromKey(today)) === 100 ? 'pending' : 'done';
+      try {
+        const result = await api('/api/executions/' + id + '/' + today, {
+          method:'PUT', body:JSON.stringify({status})
+        });
+        executions = executions.filter(e => !(e.activityId === id && e.date === today));
+        if (status !== 'pending') executions.push(result);
+        renderAll();
+        toast('Hábito atualizado');
+      } catch (err) { alert(err.message); b.disabled = false; }
+    });
+    async function recordAmount(b, adjust) {
+      const id = adjust ? b.dataset.habitAdjust : b.dataset.habitAdd;
+      const field = document.querySelector('[data-habit-amount="' + id + '"]');
+      const amount = Number(field?.value);
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000)
+        return alert('Informe uma quantidade positiva.');
+      const value = adjust ? amount : Math.round((habitCurrentValue(id) + amount) * 100) / 100;
+      if (value > 1000000) return alert('Quantidade acima do limite permitido.');
+      b.disabled = true;
+      try {
+        const result = await api('/api/habits/' + id + '/progress/' + today, {
+          method:'PUT', body:JSON.stringify({value})
+        });
+        habitEntries = habitEntries.filter(e => !(e.activityId === id && e.date === today));
+        habitEntries.push(result.entry);
+        executions = executions.filter(e => !(e.activityId === id && e.date === today));
+        if (result.status !== 'pending') executions.push({
+          activityId:id, date:today, status:result.status
+        });
+        renderAll();
+        toast('Progresso registrado');
+      } catch (err) { alert(err.message); b.disabled = false; }
+    }
+    $$('[data-habit-add]').forEach(b => b.onclick = () => recordAmount(b, false));
+    $$('[data-habit-adjust]').forEach(b => b.onclick = () => recordAmount(b, true));
   }
 
   function performancePeriodStats(ref, count = 30, endOffset = 0) {
@@ -1860,7 +1959,16 @@
     return merged;
   }
 
-  function openActivityModal(id = '') {
+  function syncHabitGoalFields() {
+    const show = $('#activityType').value === 'habit';
+    $('#habitGoalFields').hidden = !show;
+    $('#habitQuantityFields').hidden = !show || $('#habitMode').value === 'check';
+    $('#habitUnit').closest('label').hidden = $('#habitMode').value !== 'quantity';
+    if ($('#habitMode').value === 'duration') $('#habitUnit').value = 'min';
+    else if ($('#habitUnit').value === 'min') $('#habitUnit').value = 'L';
+  }
+
+  function openActivityModal(id = '', forceHabit = false) {
     const form = $('#activityForm');
     form.reset();
     $('#activityId').value = '';
@@ -1868,13 +1976,21 @@
     $('#activityTime').value = '09:00';
     $('#activityEndTime').value = '09:30';
     $('#activityPriority').value = 'medium';
-    $('#activityType').value = 'routine';
+    $('#activityType').value = forceHabit ? 'habit' : 'routine';
+    $('#habitMode').value = 'check';
+    $('#habitCycleDays').value = '21';
+    $('#habitTarget').value = '1';
+    $('#habitUnit').value = 'L';
     $('#activityActive').checked = true;
     $('#activityNoEnd').checked = true;
     $('#activityEnd').value = '';
+    if (forceHabit) {
+      $('#activityStart').value = todayKey();
+      $('#daysPicker input').forEach(c => c.checked = true);
+    }
     syncEndDate();
     document.querySelectorAll('#daysPicker input').forEach(c => c.checked = [1,2,3,4,5].includes(+c.value));
-    $('#modalTitle').textContent = id ? 'Editar atividade' : 'Nova atividade';
+    $('#modalTitle').textContent = id ? 'Editar atividade' : forceHabit ? 'Novo hábito' : 'Nova atividade';
 
     if (id) {
       const a = activities.find(x => x.id === id);
@@ -1887,6 +2003,13 @@
       $('#activityEndTime').value = endTimeFor(a);
       $('#activityPriority').value = a.priority;
       $('#activityType').value = a.type;
+      const goal = habitGoals.get(a.id);
+      if (goal) {
+        $('#habitMode').value = goal.mode;
+        $('#habitCycleDays').value = String(goal.cycleDays);
+        $('#habitTarget').value = String(goal.target);
+        $('#habitUnit').value = goal.unit;
+      }
       $('#activityStart').value = a.startDate || '';
       $('#activityNoEnd').checked = !a.endDate;
       $('#activityEnd').value = a.endDate || '';
@@ -1896,6 +2019,7 @@
       document.querySelectorAll('#daysPicker input').forEach(c => c.checked = days(a).includes(+c.value));
     }
 
+    syncHabitGoalFields();
     updateDurationPreview();
     $('#activityModal').classList.add('open');
   }
@@ -1970,6 +2094,10 @@
       action.hidden = false;
       action.textContent = '+ Nova tarefa';
       action.onclick = () => openTaskModal('', todoActivity);
+    } else if (view === 'habits') {
+      action.hidden = false;
+      action.textContent = '+ Novo hábito';
+      action.onclick = () => openActivityModal('', true);
     } else if (view !== 'performance') {
       action.hidden = false;
       action.textContent = '+ Nova atividade';
