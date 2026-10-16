@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ROUTINE 2.0</title>
   <link rel="stylesheet" href="/css/style.css?v=20261002-6">
-  <link rel="stylesheet" href="/css/routine2.css?v=20261015-1">
+  <link rel="stylesheet" href="/css/routine2.css?v=20261016-1">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#111214">
   <meta name="application-name" content="ROUTINE">
@@ -87,9 +87,27 @@
     </section>
 
     <section class="view" id="routineView">
-      <article class="panel">
-        <div class="panelhead"><div><h2>Minha rotina</h2><p>Horários, recorrência, hábitos e tarefas vinculadas.</p></div></div>
-        <div id="routineList" class="routinegrid"></div>
+      <article class="panel routine-workspace">
+        <div class="panelhead routine-workspace-head">
+          <div>
+            <h2>Minha rotina</h2>
+            <p>Visualize e acompanhe sua rotina do jeito que funciona melhor para você.</p>
+          </div>
+          <div class="routine-view-switch" role="group" aria-label="Visualização da rotina">
+            <button type="button" data-routine-mode="calendar">Calendário</button>
+            <button type="button" data-routine-mode="kanban">Kanban</button>
+            <button type="button" data-routine-mode="list">Lista</button>
+          </div>
+        </div>
+
+        <div class="routine-date-toolbar" id="routineDateToolbar">
+          <button type="button" id="routinePrevDay" aria-label="Dia anterior">‹</button>
+          <button type="button" class="routine-today-btn" id="routineToday">Hoje</button>
+          <strong id="routineDateLabel"></strong>
+          <button type="button" id="routineNextDay" aria-label="Próximo dia">›</button>
+        </div>
+
+        <div id="routineList" class="routine-view-body"></div>
       </article>
     </section>
 
@@ -419,7 +437,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="/js/app2.js?v=20261015-5"></script>
+<script src="/js/app2.js?v=20261016-1"></script>
 <script src="/js/pwa.js?v=2"></script>
 </body>
 </html>

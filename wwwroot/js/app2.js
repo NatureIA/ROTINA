@@ -16,6 +16,12 @@
   let todoSearch = '';
   let activeTaskId = null;
 
+  const storedRoutineMode = localStorage.getItem('routine_structure_mode');
+  let routineMode = ['calendar','kanban','list'].includes(storedRoutineMode) ? storedRoutineMode : 'calendar';
+  let routineDate = new Date();
+  routineDate.setHours(12, 0, 0, 0);
+  let routineCalendarAutoScrollKey = '';
+
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
   const pad = n => String(n).padStart(2, '0');
@@ -366,11 +372,103 @@
     renderCategories();
   }
 
-  function renderRoutine() {
+  function routineDateText(d) {
+    const text = new Intl.DateTimeFormat('pt-BR', {
+      weekday:'long',
+      day:'2-digit',
+      month:'long'
+    }).format(d);
+    return key(d) === todayKey() ? `Hoje · ${text}` : text;
+  }
+
+  function routineModeDateAware() {
+    return routineMode === 'calendar' || routineMode === 'list';
+  }
+
+  function renderRoutineToolbar() {
+    $$('[data-routine-mode]').forEach(button => {
+      const active = button.dataset.routineMode === routineMode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+
+    const toolbar = $('#routineDateToolbar');
+    toolbar.hidden = !routineModeDateAware();
+    $('#routineDateLabel').textContent = routineDateText(routineDate);
+  }
+
+  function archiveRoutineActivity(id) {
+    return (async () => {
+      if (!confirm('Arquivar esta rotina? Ela sairá da sua rotina ativa, mas o histórico e as tarefas serão preservados.')) return;
+
+      const archived = activities.find(x => x.id === id);
+      await api('/api/activities/' + id, { method:'DELETE' });
+
+      todoTasks.forEach(t => {
+        if (t.activityId === id && !t.activityTitle) t.activityTitle = archived?.title || '';
+      });
+
+      if (archived) {
+        const archivedSnapshot = {
+          ...archived,
+          archivedWasActive: archived.active,
+          active:false,
+          archivedAt:new Date().toISOString()
+        };
+        allActivities = allActivities.filter(x => x.id !== id);
+        allActivities.push(archivedSnapshot);
+      }
+
+      activities = activities.filter(x => x.id !== id);
+      renderAll();
+      toast('Rotina arquivada; histórico preservado');
+    })();
+  }
+
+  function bindRoutineActions() {
+    $$('[data-edit-activity]').forEach(b => {
+      b.onclick = e => {
+        e.stopPropagation();
+        openActivityModal(b.dataset.editActivity);
+      };
+    });
+
+    $$('[data-routine-new-task]').forEach(b => {
+      b.onclick = e => {
+        e.stopPropagation();
+        openTaskModal('', b.dataset.routineNewTask);
+      };
+    });
+
+    $$('[data-routine-tasks], [data-calendar-tasks], [data-list-tasks]').forEach(b => {
+      b.onclick = e => {
+        e.stopPropagation();
+        const id = b.dataset.routineTasks || b.dataset.calendarTasks || b.dataset.listTasks;
+        openTasksForActivity(id);
+      };
+    });
+
+    $$('[data-toggle-activity]').forEach(b => b.onclick = async e => {
+      e.stopPropagation();
+      const a = activities.find(x => x.id === b.dataset.toggleActivity);
+      if (!a) return;
+      await saveActivity({...a, active:!a.active});
+      toast('Atividade atualizada');
+    });
+
+    $$('[data-delete-activity]').forEach(b => b.onclick = async e => {
+      e.stopPropagation();
+      await archiveRoutineActivity(b.dataset.deleteActivity);
+    });
+  }
+
+  function routineKanbanHtml() {
     const names = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    $('#routineList').innerHTML = activities.length
+
+    return activities.length
       ? [...activities].sort((a,b) => a.time.localeCompare(b.time)).map(a => {
           const openTasks = todoTasks.filter(t => t.activityId === a.id && !['done','skipped'].includes(t.status)).length;
+
           return `<div class="routinecard ${a.active ? '' : 'paused'}">
             <div class="routinetop">
               <div><strong>${esc(a.title)}</strong><p>${esc(a.category)} · ${a.type === 'habit' ? 'Hábito' : 'Rotina'}</p></div>
@@ -392,40 +490,232 @@
           </div>`;
         }).join('')
       : '<div class="empty">Sua rotina está vazia.</div>';
+  }
 
-    $$('[data-edit-activity]').forEach(b => b.onclick = () => openActivityModal(b.dataset.editActivity));
-    $$('[data-routine-new-task]').forEach(b => b.onclick = () => openTaskModal('', b.dataset.routineNewTask));
-    $$('[data-routine-tasks]').forEach(b => b.onclick = () => openTasksForActivity(b.dataset.routineTasks));
-    $$('[data-toggle-activity]').forEach(b => b.onclick = async () => {
-      const a = activities.find(x => x.id === b.dataset.toggleActivity);
-      if (!a) return;
-      await saveActivity({...a, active: !a.active});
-      toast('Atividade atualizada');
+  function routineListHtml() {
+    const list = dayActivities(routineDate);
+    if (!list.length) return '<div class="empty">Nenhuma atividade planejada para este dia.</div>';
+
+    return `<div class="routine-list-table">
+      ${list.map(a => {
+        const linked = linkedTasks(a.id, routineDate);
+        const done = linked.filter(t => taskDoneForDate(t, routineDate)).length;
+        const progress = activityProgress(a, routineDate);
+        const current = activities.some(x => x.id === a.id);
+
+        return `<article class="routine-list-row">
+          <div class="routine-list-time">
+            <strong>${a.time}</strong>
+            <span>${endTimeFor(a)}</span>
+          </div>
+          <div class="routine-list-main">
+            <strong>${esc(a.title)}</strong>
+            <span>${esc(a.category)} · ${a.type === 'habit' ? 'Hábito' : 'Rotina'} · ${dur(a.durationMinutes)}</span>
+          </div>
+          <div class="routine-list-progress">
+            <div><i style="width:${progress}%"></i></div>
+            <span>${linked.length ? `${done}/${linked.length} tarefas` : `${progress}% concluído`}</span>
+          </div>
+          <div class="routine-list-actions">
+            <button class="mini orange" data-list-tasks="${a.id}">Ver tarefas</button>
+            ${current ? `<button class="mini" data-edit-activity="${a.id}">Editar</button>` : '<span class="archived-label">Arquivada</span>'}
+          </div>
+        </article>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function calendarLayout(items) {
+    const source = items.map(a => {
+      const start = timeMinutes(a.time);
+      const end = Math.min(24 * 60, start + Math.max(5, +a.durationMinutes || 0));
+      return {activity:a, start, end};
+    }).sort((a,b) => a.start - b.start || a.end - b.end);
+
+    const clusters = [];
+    let cluster = [];
+    let clusterEnd = -1;
+
+    source.forEach(event => {
+      if (!cluster.length || event.start < clusterEnd) {
+        cluster.push(event);
+        clusterEnd = Math.max(clusterEnd, event.end);
+      } else {
+        clusters.push(cluster);
+        cluster = [event];
+        clusterEnd = event.end;
+      }
     });
-    $$('[data-delete-activity]').forEach(b => b.onclick = async () => {
-      const id = b.dataset.deleteActivity;
-      if (!confirm('Arquivar esta rotina? Ela sairá da sua rotina ativa, mas o histórico e as tarefas serão preservados.')) return;
-      const archived = activities.find(x => x.id === id);
-      await api('/api/activities/' + id, { method:'DELETE' });
-      todoTasks.forEach(t => {
-        if (t.activityId === id && !t.activityTitle) t.activityTitle = archived?.title || '';
+    if (cluster.length) clusters.push(cluster);
+
+    const laidOut = [];
+    clusters.forEach(group => {
+      const laneEnds = [];
+
+      group.forEach(event => {
+        let lane = laneEnds.findIndex(end => end <= event.start);
+        if (lane === -1) lane = laneEnds.length;
+        laneEnds[lane] = event.end;
+        event.lane = lane;
       });
 
-      if (archived) {
-        const archivedSnapshot = {
-          ...archived,
-          archivedWasActive: archived.active,
-          active: false,
-          archivedAt: new Date().toISOString()
-        };
-        allActivities = allActivities.filter(x => x.id !== id);
-        allActivities.push(archivedSnapshot);
-      }
-
-      activities = activities.filter(x => x.id !== id);
-      renderAll();
-      toast('Rotina arquivada; histórico preservado');
+      const laneCount = Math.max(1, laneEnds.length);
+      group.forEach(event => laidOut.push({...event, laneCount}));
     });
+
+    return laidOut;
+  }
+
+  function routineCalendarRange(items) {
+    if (!items.length) return {startHour:6, endHour:22};
+
+    const starts = items.map(a => timeMinutes(a.time));
+    const ends = items.map(a => Math.min(24 * 60, timeMinutes(a.time) + Math.max(5, +a.durationMinutes || 0)));
+
+    const earliest = Math.floor(Math.min(...starts) / 60) - 1;
+    const latest = Math.ceil(Math.max(...ends) / 60) + 1;
+
+    return {
+      startHour:Math.max(0, Math.min(6, earliest)),
+      endHour:Math.min(24, Math.max(22, latest))
+    };
+  }
+
+  function routineCalendarHtml() {
+    const list = dayActivities(routineDate);
+    const range = routineCalendarRange(list);
+    const hourPx = window.innerWidth <= 760 ? 64 : 72;
+    const startMinute = range.startHour * 60;
+    const endMinute = range.endHour * 60;
+    const totalHeight = (range.endHour - range.startHour) * hourPx;
+    const layout = calendarLayout(list);
+    const now = new Date();
+    const today = key(routineDate) === todayKey();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const hours = [];
+    for (let h = range.startHour; h <= range.endHour; h++) {
+      const y = (h - range.startHour) * hourPx;
+      hours.push(`<span class="routine-hour-label" style="top:${y}px">${pad(h)}:00</span>`);
+    }
+
+    const lines = [];
+    for (let h = range.startHour; h <= range.endHour; h++) {
+      const y = (h - range.startHour) * hourPx;
+      lines.push(`<i class="routine-hour-line" style="top:${y}px"></i>`);
+      if (h < range.endHour) lines.push(`<i class="routine-half-line" style="top:${y + hourPx / 2}px"></i>`);
+    }
+
+    const events = layout.map(({activity:a,start,end,lane,laneCount}) => {
+      const top = ((start - startMinute) / 60) * hourPx;
+      const rawHeight = ((end - start) / 60) * hourPx;
+      const height = Math.max(42, rawHeight - 3);
+      const linked = linkedTasks(a.id, routineDate);
+      const done = linked.filter(t => taskDoneForDate(t, routineDate)).length;
+      const progress = activityProgress(a, routineDate);
+      const isNow = today && nowMinutes >= start && nowMinutes < end;
+      const left = lane * (100 / laneCount);
+      const width = 100 / laneCount;
+      const compact = height < 82 ? 'compact' : '';
+
+      return `<button type="button"
+        class="routine-calendar-event ${isNow ? 'is-now' : ''} ${compact}"
+        data-calendar-tasks="${a.id}"
+        style="top:${top}px;height:${height}px;left:calc(${left}% + 4px);width:calc(${width}% - 8px)"
+        aria-label="${esc(a.title)}, ${a.time} até ${endTimeFor(a)}">
+          <div class="routine-calendar-event-head">
+            <strong>${esc(a.title)}</strong>
+            <span>${a.time}–${endTimeFor(a)}</span>
+          </div>
+          <small>${esc(a.category)}${linked.length ? ` · ${done}/${linked.length} tarefas` : ''}</small>
+          <div class="routine-calendar-event-progress"><i style="width:${progress}%"></i></div>
+        </button>`;
+    }).join('');
+
+    return `<div class="routine-calendar-shell" id="routineCalendarScroll">
+      <div class="routine-calendar-grid" style="height:${totalHeight}px">
+        <div class="routine-calendar-hours" style="height:${totalHeight}px">${hours.join('')}</div>
+        <div class="routine-calendar-stage"
+             id="routineCalendarStage"
+             data-start-minute="${startMinute}"
+             data-end-minute="${endMinute}"
+             data-hour-px="${hourPx}"
+             style="height:${totalHeight}px">
+          ${lines.join('')}
+          <div class="routine-calendar-events">${events}</div>
+          <div class="routine-now-line" id="routineNowLine" hidden><span></span></div>
+        </div>
+      </div>
+      ${list.length ? '' : '<div class="routine-calendar-empty">Nenhuma atividade planejada para este dia.</div>'}
+    </div>`;
+  }
+
+  function updateRoutineCurrentTimeLine() {
+    const line = $('#routineNowLine');
+    const stage = $('#routineCalendarStage');
+    if (!line || !stage || routineMode !== 'calendar') return;
+
+    const today = key(routineDate) === todayKey();
+    const now = new Date();
+    const minute = now.getHours() * 60 + now.getMinutes();
+    const startMinute = +stage.dataset.startMinute;
+    const endMinute = +stage.dataset.endMinute;
+    const hourPx = +stage.dataset.hourPx;
+
+    if (!today || minute < startMinute || minute > endMinute) {
+      line.hidden = true;
+      return;
+    }
+
+    line.hidden = false;
+    line.style.top = (((minute - startMinute) / 60) * hourPx) + 'px';
+    line.querySelector('span').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+
+  function autoScrollRoutineCalendar() {
+    if (routineMode !== 'calendar' || key(routineDate) !== todayKey()) return;
+
+    const scroller = $('#routineCalendarScroll');
+    const stage = $('#routineCalendarStage');
+    if (!scroller || !stage) return;
+
+    const autoKey = `${key(routineDate)}-${routineMode}`;
+    if (routineCalendarAutoScrollKey === autoKey) return;
+
+    const now = new Date();
+    const minute = now.getHours() * 60 + now.getMinutes();
+    const startMinute = +stage.dataset.startMinute;
+    const endMinute = +stage.dataset.endMinute;
+    const hourPx = +stage.dataset.hourPx;
+
+    if (minute < startMinute || minute > endMinute) return;
+
+    const top = ((minute - startMinute) / 60) * hourPx;
+    scroller.scrollTop = Math.max(0, top - scroller.clientHeight * .34);
+    routineCalendarAutoScrollKey = autoKey;
+  }
+
+  function renderRoutine() {
+    renderRoutineToolbar();
+
+    const container = $('#routineList');
+
+    if (routineMode === 'kanban') {
+      container.className = 'routinegrid';
+      container.innerHTML = routineKanbanHtml();
+    } else if (routineMode === 'list') {
+      container.className = 'routine-list-view';
+      container.innerHTML = routineListHtml();
+    } else {
+      container.className = 'routine-calendar-view';
+      container.innerHTML = routineCalendarHtml();
+      requestAnimationFrame(() => {
+        updateRoutineCurrentTimeLine();
+        autoScrollRoutineCalendar();
+      });
+    }
+
+    bindRoutineActions();
   }
 
   function renderHabits() {
@@ -1686,6 +1976,7 @@
       action.onclick = () => openActivityModal();
     }
 
+    if (view === 'routine') renderRoutine();
     if (view === 'todo') renderTodo();
     if (view === 'performance') renderPerformance();
   }
@@ -1801,6 +2092,38 @@
     todoStatus = 'open';
     renderTodo();
   };
+
+  $('[data-routine-mode]').forEach(button => {
+    button.onclick = () => {
+      routineMode = button.dataset.routineMode;
+      localStorage.setItem('routine_structure_mode', routineMode);
+      routineCalendarAutoScrollKey = '';
+      renderRoutine();
+    };
+  });
+
+  $('#routinePrevDay').onclick = () => {
+    routineDate = addDays(routineDate, -1);
+    routineCalendarAutoScrollKey = '';
+    renderRoutine();
+  };
+
+  $('#routineNextDay').onclick = () => {
+    routineDate = addDays(routineDate, 1);
+    routineCalendarAutoScrollKey = '';
+    renderRoutine();
+  };
+
+  $('#routineToday').onclick = () => {
+    routineDate = new Date();
+    routineDate.setHours(12, 0, 0, 0);
+    routineCalendarAutoScrollKey = '';
+    renderRoutine();
+  };
+
+  setInterval(() => {
+    if (activeView === 'routine' && routineMode === 'calendar') updateRoutineCurrentTimeLine();
+  }, 30000);
 
   $('#sharePerformance').onclick = sharePerformanceResults;
   $('#closePerformanceShareModal').onclick = closePerformanceShareModal;
