@@ -86,6 +86,31 @@ public class TaskChecklistItem
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
+// Configuração adicional do hábito; Activities e Executions permanecem compatíveis com a 3.1.
+public class HabitGoal
+{
+    public Guid ActivityId { get; set; }
+    public Guid UserId { get; set; }
+    [MaxLength(20)] public string Mode { get; set; } = "check";
+    public decimal Target { get; set; } = 1;
+    [MaxLength(20)] public string Unit { get; set; } = "vez";
+    public int CycleDays { get; set; } = 21;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class HabitEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ActivityId { get; set; }
+    public Guid UserId { get; set; }
+    [MaxLength(10)] public string Date { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public record HabitGoalRequest(string? Mode, decimal Target, string? Unit, int CycleDays);
+public record HabitEntryRequest(decimal Value);
+
 public record LoginRequest(string? Email, string? Password, string? Login = null);
 public record LoginResponse(string Token, string Email);
 public record ExecutionRequest(string Status);

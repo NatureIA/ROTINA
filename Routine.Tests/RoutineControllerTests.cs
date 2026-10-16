@@ -316,6 +316,93 @@ public class RoutineControllerTests
         Assert.Empty(await db.ChecklistItems.ToListAsync());
     }
 
+    [Fact]
+    public async Task HabitTracking_StoresDailyQuantityAndSynchronizesLegacyStatus()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var habit = MakeActivity(userId, "Beber água");
+        habit.Type = "habit";
+        habit.Days = "0,1,2,3,4,5,6";
+        habit.StartDate = "2026-10-01";
+        db.Activities.Add(habit);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        var goalResult = await controller.SetHabitGoal(
+            habit.Id, new HabitGoalRequest("quantity", 4, "L", 21));
+        Assert.IsType<OkObjectResult>(goalResult);
+
+        var first = await controller.SetHabitProgress(
+            habit.Id, "2026-10-16", new HabitEntryRequest(2.5m));
+        Assert.IsType<OkObjectResult>(first);
+        Assert.Equal("progress", (await db.Executions.SingleAsync()).Status);
+        Assert.Equal(2.5m, (await db.HabitEntries.SingleAsync()).Value);
+
+        var completed = await controller.SetHabitProgress(
+            habit.Id, "2026-10-16", new HabitEntryRequest(4m));
+        Assert.IsType<OkObjectResult>(completed);
+        Assert.Equal("done", (await db.Executions.SingleAsync()).Status);
+        Assert.Single(await db.HabitEntries.ToListAsync());
+
+        await controller.SetHabitProgress(
+            habit.Id, "2026-10-16", new HabitEntryRequest(3m));
+        Assert.Equal("progress", (await db.Executions.SingleAsync()).Status);
+        Assert.Equal(3m, (await db.HabitEntries.SingleAsync()).Value);
+    }
+
+    [Fact]
+    public async Task HabitTracking_EnforcesUserIsolationAndScheduledDays()
+    {
+        await using var db = CreateDb();
+        var owner = Guid.NewGuid();
+        var outsider = Guid.NewGuid();
+        var habit = MakeActivity(owner, "Leitura");
+        habit.Type = "habit";
+        habit.StartDate = "2026-10-16";
+        habit.Days = "1,2,3,4,5";
+        db.Activities.Add(habit);
+        await db.SaveChangesAsync();
+
+        var otherController = CreateController(db, outsider);
+        Assert.IsType<NotFoundResult>(await otherController.SetHabitGoal(
+            habit.Id, new HabitGoalRequest("duration", 30, "min", 21)));
+
+        var controller = CreateController(db, owner);
+        Assert.IsType<OkObjectResult>(await controller.SetHabitGoal(
+            habit.Id, new HabitGoalRequest("duration", 30, "min", 21)));
+        Assert.IsType<BadRequestObjectResult>(await controller.SetHabitProgress(
+            habit.Id, "2026-10-17", new HabitEntryRequest(30m)));
+        Assert.IsType<BadRequestObjectResult>(await controller.SetHabitProgress(
+            habit.Id, "2026-10-15", new HabitEntryRequest(30m)));
+        Assert.IsType<NotFoundResult>(await otherController.SetHabitProgress(
+            habit.Id, "2026-10-16", new HabitEntryRequest(30m)));
+        Assert.Empty(await db.HabitEntries.ToListAsync());
+    }
+
+    [Fact]
+    public async Task HabitTracking_ArchivesWithoutErasingGoalOrDailyHistory()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var habit = MakeActivity(userId, "Meditação");
+        habit.Type = "habit";
+        habit.Days = "0,1,2,3,4,5,6";
+        db.Activities.Add(habit);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userId);
+        await controller.SetHabitGoal(habit.Id, new HabitGoalRequest("duration", 15m, "min", 30));
+        await controller.SetHabitProgress(habit.Id, "2026-10-16", new HabitEntryRequest(15m));
+        Assert.IsType<NoContentResult>(await controller.DeleteActivity(habit.Id));
+
+        Assert.True(await db.HabitGoals.AnyAsync(x => x.ActivityId == habit.Id));
+        Assert.True(await db.HabitEntries.AnyAsync(x => x.ActivityId == habit.Id));
+        Assert.True(await db.Executions.AnyAsync(x => x.ActivityId == habit.Id));
+        Assert.IsType<NotFoundResult>(await controller.SetHabitProgress(
+            habit.Id, "2026-10-17", new HabitEntryRequest(15m)));
+    }
+
     private static AppDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

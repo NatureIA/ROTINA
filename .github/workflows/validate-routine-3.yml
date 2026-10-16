@@ -1,8 +1,10 @@
-name: Validate ROUTINE 3.0
+name: Validate ROUTINE 3.2
 
 on:
   push:
-    branches: [ routine-3.0 ]
+    branches: [ routine-3.2 ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
