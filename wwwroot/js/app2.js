@@ -808,8 +808,8 @@
       const id = adjust ? b.dataset.habitAdjust : b.dataset.habitAdd;
       const field = document.querySelector('[data-habit-amount="' + id + '"]');
       const amount = Number(field?.value);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000)
-        return alert('Informe uma quantidade positiva.');
+      if (!Number.isFinite(amount) || amount < 0 || (!adjust && amount === 0) || amount > 1000000)
+        return alert('Informe uma quantidade válida.');
       const value = adjust ? amount : Math.round((habitCurrentValue(id) + amount) * 100) / 100;
       if (value > 1000000) return alert('Quantidade acima do limite permitido.');
       b.disabled = true;
