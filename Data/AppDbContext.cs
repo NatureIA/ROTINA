@@ -10,6 +10,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Execution> Executions => Set<Execution>();
     public DbSet<RoutineTask> RoutineTasks => Set<RoutineTask>();
     public DbSet<TaskChecklistItem> ChecklistItems => Set<TaskChecklistItem>();
+    public DbSet<HabitGoal> HabitGoals => Set<HabitGoal>();
+    public DbSet<HabitEntry> HabitEntries => Set<HabitEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,5 +76,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<TaskChecklistItem>()
             .HasIndex(x => new { x.TaskId, x.SortOrder });
+
+        modelBuilder.Entity<HabitGoal>().HasKey(x => x.ActivityId);
+        modelBuilder.Entity<HabitGoal>().Property(x => x.Target).HasPrecision(12, 2);
+        modelBuilder.Entity<HabitGoal>().HasIndex(x => x.UserId);
+
+        modelBuilder.Entity<HabitEntry>().Property(x => x.Value).HasPrecision(12, 2);
+        modelBuilder.Entity<HabitEntry>()
+            .HasIndex(x => new { x.UserId, x.ActivityId, x.Date })
+            .IsUnique();
     }
 }
