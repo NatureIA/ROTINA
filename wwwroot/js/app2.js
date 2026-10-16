@@ -1984,12 +1984,10 @@
     $('#activityActive').checked = true;
     $('#activityNoEnd').checked = true;
     $('#activityEnd').value = '';
-    if (forceHabit) {
-      $('#activityStart').value = todayKey();
-      $('#daysPicker input').forEach(c => c.checked = true);
-    }
     syncEndDate();
-    document.querySelectorAll('#daysPicker input').forEach(c => c.checked = [1,2,3,4,5].includes(+c.value));
+    $('#daysPicker input').forEach(c => c.checked =
+      forceHabit || [1,2,3,4,5].includes(+c.value));
+    if (forceHabit) $('#activityStart').value = todayKey();
     $('#modalTitle').textContent = id ? 'Editar atividade' : forceHabit ? 'Novo hábito' : 'Nova atividade';
 
     if (id) {
