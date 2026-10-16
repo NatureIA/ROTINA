@@ -401,5 +401,54 @@ AND NOT EXISTS (
         ON [ChecklistItems] ([TaskId], [SortOrder]);
 """);
 
+    await Run("habit-goals-table", """
+IF OBJECT_ID(N'[HabitGoals]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [HabitGoals] (
+        [ActivityId] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [Mode] nvarchar(20) NOT NULL,
+        [Target] decimal(12,2) NOT NULL,
+        [Unit] nvarchar(20) NOT NULL,
+        [CycleDays] int NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_HabitGoals] PRIMARY KEY ([ActivityId])
+    );
+END;
+""");
+
+    await Run("habit-goals-user-index", """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_HabitGoals_UserId' AND object_id = OBJECT_ID(N'[HabitGoals]')
+)
+    CREATE INDEX [IX_HabitGoals_UserId] ON [HabitGoals] ([UserId]);
+""");
+
+    await Run("habit-entries-table", """
+IF OBJECT_ID(N'[HabitEntries]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [HabitEntries] (
+        [Id] uniqueidentifier NOT NULL,
+        [ActivityId] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [Date] nvarchar(10) NOT NULL,
+        [Value] decimal(12,2) NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_HabitEntries] PRIMARY KEY ([Id])
+    );
+END;
+""");
+
+    await Run("habit-entries-unique-index", """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_HabitEntries_UserId_ActivityId_Date'
+      AND object_id = OBJECT_ID(N'[HabitEntries]')
+)
+    CREATE UNIQUE INDEX [IX_HabitEntries_UserId_ActivityId_Date]
+        ON [HabitEntries] ([UserId], [ActivityId], [Date]);
+""");
+
     setStep("schema-ready");
 }
