@@ -386,7 +386,7 @@
   }
 
   function renderRoutineToolbar() {
-    $('[data-routine-mode]').forEach(button => {
+    $$('[data-routine-mode]').forEach(button => {
       const active = button.dataset.routineMode === routineMode;
       button.classList.toggle('active', active);
       button.setAttribute('aria-pressed', String(active));
