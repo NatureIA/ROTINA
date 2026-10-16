@@ -41,6 +41,18 @@ if (invalidCollectionLines.length) {
   );
 }
 
+const invalidSelectorHelpers = js
+  .split(/\r?\n/)
+  .map((line, index) => ({ line, number: index + 1 }))
+  .filter(item => /\$\$\$\s*\(/.test(item.line));
+
+if (invalidSelectorHelpers.length) {
+  fail(
+    'Helper de seletor inválido encontrado (use $ ou $, nunca $$):\n' +
+    invalidSelectorHelpers.map(item => item.number + ': ' + item.line.trim()).join('\n')
+  );
+}
+
 console.log('UI references ok');
 console.log('Unique IDs ok');
 console.log('Selector collections ok');
