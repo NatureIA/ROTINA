@@ -1987,7 +1987,7 @@
     $('#activityNoEnd').checked = true;
     $('#activityEnd').value = '';
     syncEndDate();
-    $('#daysPicker input').forEach(c => c.checked =
+    document.querySelectorAll('#daysPicker input').forEach(c => c.checked =
       forceHabit || [1,2,3,4,5].includes(+c.value));
     if (forceHabit) $('#activityStart').value = todayKey();
     $('#modalTitle').textContent = id ? 'Editar atividade' : forceHabit ? 'Novo hábito' : 'Nova atividade';
