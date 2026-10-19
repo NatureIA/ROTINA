@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -77,6 +80,69 @@ public class AuthControllerTests
             "SenhaErrada"));
 
         Assert.IsType<UnauthorizedObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Me_DisplaysNameWhileKeepingEmailAsLoginIdentifier()
+    {
+        await using var db = CreateDb();
+        var user = new User
+        {
+            Login = "victor@exemplo.com",
+            Email = "victor@exemplo.com",
+            NormalizedEmail = "victor@exemplo.com",
+            DisplayName = "Victor",
+            PasswordHash = PasswordTools.Hash("SenhaForte123!")
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateAuthenticatedController(db, user.Id);
+        var response = await controller.Me();
+        var ok = Assert.IsType<OkObjectResult>(response);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+
+        Assert.Equal("Victor", json.RootElement.GetProperty("login").GetString());
+        Assert.Equal("victor@exemplo.com", json.RootElement.GetProperty("email").GetString());
+
+        var login = await controller.Login(new LoginRequest("victor@exemplo.com", "SenhaForte123!"));
+        Assert.IsType<OkObjectResult>(login);
+    }
+
+    [Fact]
+    public async Task Me_ExistingAccountWithoutDisplayNameRemainsCompatible()
+    {
+        await using var db = CreateDb();
+        var user = new User
+        {
+            Login = "usuario@exemplo.com",
+            Email = "usuario@exemplo.com",
+            NormalizedEmail = "usuario@exemplo.com",
+            PasswordHash = PasswordTools.Hash("SenhaForte123!")
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateAuthenticatedController(db, user.Id);
+        var response = await controller.Me();
+        var ok = Assert.IsType<OkObjectResult>(response);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+
+        Assert.Equal("usuario@exemplo.com", json.RootElement.GetProperty("login").GetString());
+    }
+
+    private static AuthController CreateAuthenticatedController(AppDbContext db, Guid userId)
+    {
+        var controller = new AuthController(db, CreateConfiguration());
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }, "test"))
+            }
+        };
+        return controller;
     }
 
     private static AppDbContext CreateDb()
