@@ -76,15 +76,27 @@ public class AuthController(AppDbContext db, IConfiguration config) : Controller
 
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
-        var identity = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name;
+        var identifier = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(identifier, out var userId))
+            return Unauthorized();
+
+        var user = await db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == userId);
+        if (user is null)
+            return Unauthorized();
+
+        var identity = user.Email ?? user.Login;
+        var displayName = string.IsNullOrWhiteSpace(user.DisplayName)
+            ? identity
+            : user.DisplayName.Trim();
 
         return Ok(new
         {
-            id = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            id = identifier,
             email = identity,
-            login = identity
+            login = displayName
         });
     }
 
