@@ -9,6 +9,7 @@ public class User
     [MaxLength(80)] public string Login { get; set; } = string.Empty;
     [MaxLength(254)] public string? Email { get; set; }
     [MaxLength(254)] public string? NormalizedEmail { get; set; }
+    [MaxLength(80)] public string? DisplayName { get; set; }
     [MaxLength(500)] public string PasswordHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Activity> Activities { get; set; } = new List<Activity>();

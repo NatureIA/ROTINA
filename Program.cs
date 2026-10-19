@@ -267,6 +267,11 @@ IF COL_LENGTH(N'Users', N'NormalizedEmail') IS NULL
     ALTER TABLE [Users] ADD [NormalizedEmail] nvarchar(254) NULL;
 """);
 
+    await Run("users-display-name", """
+IF COL_LENGTH(N'Users', N'DisplayName') IS NULL
+    ALTER TABLE [Users] ADD [DisplayName] nvarchar(80) NULL;
+""");
+
     await Run("users-normalize-email-data", """
 UPDATE [Users]
 SET [NormalizedEmail] = LOWER(LTRIM(RTRIM([Email])))
