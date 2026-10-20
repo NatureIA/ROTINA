@@ -1,10 +1,14 @@
-const CACHE_NAME = 'routine-static-v26';
+const CACHE_NAME = 'routine-static-v27';
 const STATIC_ASSETS = [
   '/login.html',
+  '/recuperar-senha.html',
+  '/redefinir-senha.html',
   '/index.html',
   '/css/style.css?v=20261002-6',
+  '/css/password-recovery.css?v=20261020-1',
   '/css/routine2.css?v=20261016-2',
   '/js/login.js?v=20261015-1',
+  '/js/password-recovery.js?v=20261020-1',
   '/js/app2.js?v=20261016-2',
   '/js/pwa.js?v=2',
   '/manifest.webmanifest',

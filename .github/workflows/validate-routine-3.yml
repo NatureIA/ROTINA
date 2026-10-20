@@ -1,8 +1,8 @@
-name: Validate ROUTINE 3.2
+name: Validate ROUTINE 3.3
 
 on:
   push:
-    branches: [ routine-3.2 ]
+    branches: [ routine-3.3 ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -17,6 +17,8 @@ jobs:
         shell: pwsh
         run: |
           node --check wwwroot/js/app2.js
+          node --check wwwroot/js/password-recovery.js
+          node --check wwwroot/js/login.js
           node --check wwwroot/js/pwa.js
           node --check wwwroot/service-worker.js
           node --check scripts/validate-ui.js
