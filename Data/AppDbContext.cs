@@ -6,6 +6,8 @@ namespace Routine.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<KiwifyEntitlement> KiwifyEntitlements => Set<KiwifyEntitlement>();
+    public DbSet<KiwifyWebhookReceipt> KiwifyWebhookReceipts => Set<KiwifyWebhookReceipt>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Activity> Activities => Set<Activity>();
     public DbSet<Execution> Executions => Set<Execution>();
@@ -22,6 +24,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .IsUnique()
             .HasDatabaseName("IX_Users_NormalizedEmail")
             .HasFilter("[NormalizedEmail] IS NOT NULL");
+
+        modelBuilder.Entity<KiwifyEntitlement>()
+            .HasIndex(x => new { x.ProductId, x.SubscriptionId })
+            .IsUnique().HasFilter("[SubscriptionId] IS NOT NULL");
+        modelBuilder.Entity<KiwifyEntitlement>()
+            .HasIndex(x => new { x.ProductId, x.OrderId })
+            .IsUnique();
+        modelBuilder.Entity<KiwifyEntitlement>()
+            .HasIndex(x => new { x.UserId, x.PaidThroughUtc });
+        modelBuilder.Entity<KiwifyEntitlement>()
+            .HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<KiwifyWebhookReceipt>()
+            .HasIndex(x => x.EventKey).IsUnique();
 
         modelBuilder.Entity<PasswordResetToken>()
             .HasIndex(x => x.TokenHash).IsUnique();

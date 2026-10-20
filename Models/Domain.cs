@@ -13,6 +13,7 @@ public class User
     [MaxLength(500)] public string PasswordHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int SessionVersion { get; set; }
+    public bool KiwifyManaged { get; set; }
     public ICollection<Activity> Activities { get; set; } = new List<Activity>();
     public ICollection<Execution> Executions { get; set; } = new List<Execution>();
     public ICollection<RoutineTask> Tasks { get; set; } = new List<RoutineTask>();
