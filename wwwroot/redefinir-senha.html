@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>ROUTINE — Nova senha</title>
+  <link rel="stylesheet" href="/css/style.css?v=20261002-6">
+  <link rel="stylesheet" href="/css/password-recovery.css?v=20261020-1">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111214">
+</head>
+<body class="login-body">
+<main class="login-shell">
+  <section class="login-brand"><div class="brand">ROUTINE</div><div><span class="eyebrow">PERSONAL PERFORMANCE SYSTEM</span><h1>Consistência<br>virou sistema.</h1><p>Planeje o dia. Execute. Meça sua aderência. Ajuste o que realmente importa.</p></div><small>Rotina → Execução → Evolução</small></section>
+  <section class="login-box">
+    <form id="resetPasswordForm">
+      <span class="eyebrow">ACESSO PRIVADO</span>
+      <h2>Nova senha</h2>
+      <p class="recovery-note">Escolha uma senha com pelo menos 12 caracteres. O link só pode ser utilizado uma vez.</p>
+      <label>Nova senha
+        <input id="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128">
+      </label>
+      <label>Confirmar nova senha
+        <input id="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128">
+      </label>
+      <div id="recoveryStatus" class="recovery-status" role="status" aria-live="polite"></div>
+      <button class="btn primary full" type="submit">Salvar nova senha</button>
+      <a class="recovery-back" href="/login.html">Voltar para o login</a>
+    </form>
+  </section>
+</main>
+<script src="/js/password-recovery.js?v=20261020-1"></script>
+<script src="/js/pwa.js?v=2"></script>
+</body>
+</html>
