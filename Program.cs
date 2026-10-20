@@ -26,6 +26,7 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddControllers();
 builder.Services.AddScoped<IPasswordResetEmailSender, HostingerPasswordResetEmailSender>();
+builder.Services.AddScoped<IKiwifyWelcomeEmailSender, KiwifyWelcomeEmailSender>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
