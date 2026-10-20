@@ -6,6 +6,7 @@ namespace Routine.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Activity> Activities => Set<Activity>();
     public DbSet<Execution> Executions => Set<Execution>();
     public DbSet<RoutineTask> RoutineTasks => Set<RoutineTask>();
@@ -21,6 +22,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .IsUnique()
             .HasDatabaseName("IX_Users_NormalizedEmail")
             .HasFilter("[NormalizedEmail] IS NOT NULL");
+
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(x => x.TokenHash).IsUnique();
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasIndex(x => new { x.UserId, x.CreatedAt });
+        modelBuilder.Entity<PasswordResetToken>()
+            .HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Activity>()
             .HasOne(x => x.User)

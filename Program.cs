@@ -1,4 +1,8 @@
 using System.Net.Mail;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using Routine.Services;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.StaticFiles;
@@ -21,6 +25,21 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddControllers();
+builder.Services.AddScoped<IPasswordResetEmailSender, HostingerPasswordResetEmailSender>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("password-recovery", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -33,6 +52,37 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.FromMinutes(1)
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var subject = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var rawVersion = context.Principal?.FindFirstValue("routine:session_version");
+            if (!Guid.TryParse(subject, out var userId))
+            {
+                context.Fail("Sessão inválida.");
+                return;
+            }
+
+            // Tokens anteriores à versão 3.3 não têm este claim: equivalem à versão zero.
+            var version = 0;
+            if (rawVersion is not null &&
+                !int.TryParse(rawVersion, out version))
+            {
+                context.Fail("Sessão inválida.");
+                return;
+            }
+
+            var database = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            var currentVersion = await database.Users.AsNoTracking()
+                .Where(x => x.Id == userId)
+                .Select(x => (int?)x.SessionVersion)
+                .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+
+            if (currentVersion is null || version != currentVersion.Value)
+                context.Fail("Sessão revogada.");
+        }
     };
 });
 builder.Services.AddAuthorization();
@@ -90,6 +140,8 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -195,8 +247,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
                             existing.NormalizedEmail = normalizedEmail;
                         }
 
-                        if (!PasswordTools.Verify(seed.Password, existing.PasswordHash))
-                            existing.PasswordHash = PasswordTools.Hash(seed.Password);
+                        // Não sobrescrever senhas alteradas pelo usuário na recuperação.
                     }
                 }
 
@@ -270,6 +321,11 @@ IF COL_LENGTH(N'Users', N'NormalizedEmail') IS NULL
     await Run("users-display-name", """
 IF COL_LENGTH(N'Users', N'DisplayName') IS NULL
     ALTER TABLE [Users] ADD [DisplayName] nvarchar(80) NULL;
+""");
+
+    await Run("users-session-version", """
+IF COL_LENGTH(N'Users', N'SessionVersion') IS NULL
+    ALTER TABLE [Users] ADD [SessionVersion] int NOT NULL CONSTRAINT [DF_Users_SessionVersion] DEFAULT (0);
 """);
 
     await Run("users-normalize-email-data", """
@@ -453,6 +509,43 @@ IF NOT EXISTS (
 )
     CREATE UNIQUE INDEX [IX_HabitEntries_UserId_ActivityId_Date]
         ON [HabitEntries] ([UserId], [ActivityId], [Date]);
+""");
+
+    await Run("password-reset-tokens-table", """
+IF OBJECT_ID(N'[PasswordResetTokens]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [PasswordResetTokens] (
+        [Id] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [TokenHash] nvarchar(64) NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [ExpiresAt] datetime2 NOT NULL,
+        [UsedAt] datetime2 NULL,
+        CONSTRAINT [PK_PasswordResetTokens] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_PasswordResetTokens_Users_UserId] FOREIGN KEY ([UserId])
+            REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+END;
+""");
+
+    await Run("password-reset-token-hash-index", """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_PasswordResetTokens_TokenHash'
+      AND object_id = OBJECT_ID(N'[PasswordResetTokens]')
+)
+    CREATE UNIQUE INDEX [IX_PasswordResetTokens_TokenHash]
+        ON [PasswordResetTokens] ([TokenHash]);
+""");
+
+    await Run("password-reset-user-created-index", """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_PasswordResetTokens_UserId_CreatedAt'
+      AND object_id = OBJECT_ID(N'[PasswordResetTokens]')
+)
+    CREATE INDEX [IX_PasswordResetTokens_UserId_CreatedAt]
+        ON [PasswordResetTokens] ([UserId], [CreatedAt]);
 """);
 
     setStep("schema-ready");

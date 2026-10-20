@@ -52,6 +52,7 @@ public class AuthController(AppDbContext db, IConfiguration config) : Controller
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, identityEmail),
+            new("routine:session_version", user.SessionVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

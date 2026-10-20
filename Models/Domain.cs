@@ -12,6 +12,7 @@ public class User
     [MaxLength(80)] public string? DisplayName { get; set; }
     [MaxLength(500)] public string PasswordHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public int SessionVersion { get; set; }
     public ICollection<Activity> Activities { get; set; } = new List<Activity>();
     public ICollection<Execution> Executions { get; set; } = new List<Execution>();
     public ICollection<RoutineTask> Tasks { get; set; } = new List<RoutineTask>();
@@ -108,6 +109,20 @@ public class HabitEntry
     public decimal Value { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
+
+public class PasswordResetToken
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public User? User { get; set; }
+    [MaxLength(64)] public string TokenHash { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAt { get; set; }
+    [ConcurrencyCheck] public DateTime? UsedAt { get; set; }
+}
+
+public record ForgotPasswordRequest(string? Email);
+public record ResetPasswordRequest(string? Token, string? NewPassword);
 
 public record HabitGoalRequest(string? Mode, decimal Target, string? Unit, int CycleDays);
 public record HabitEntryRequest(decimal Value);
