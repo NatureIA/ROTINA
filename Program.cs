@@ -26,6 +26,7 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddControllers();
 builder.Services.AddScoped<IPasswordResetEmailSender, HostingerPasswordResetEmailSender>();
+builder.Services.AddScoped<IKiwifyWelcomeEmailSender, KiwifyWelcomeEmailSender>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -81,7 +82,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
                 .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
 
             if (currentVersion is null || version != currentVersion.Value)
+            {
                 context.Fail("Sessão revogada.");
+                return;
+            }
+
+            var managed = await database.Users.AsNoTracking().Where(x => x.Id == userId)
+                .Select(x => x.KiwifyManaged).SingleAsync(context.HttpContext.RequestAborted);
+            if (managed)
+            {
+                var now = DateTime.UtcNow;
+                var authorized = await database.KiwifyEntitlements.AsNoTracking().AnyAsync(x =>
+                    x.UserId == userId && x.PaidThroughUtc > now &&
+                    (x.Status == "active" || x.Status == "canceled" || x.Status == "late"),
+                    context.HttpContext.RequestAborted);
+                if (!authorized)
+                    context.Fail("Acesso comercial inativo.");
+            }
         }
     };
 });
@@ -511,6 +528,12 @@ IF NOT EXISTS (
         ON [HabitEntries] ([UserId], [ActivityId], [Date]);
 """);
 
+    await Run("users-kiwify-managed", """
+IF COL_LENGTH(N'Users', N'KiwifyManaged') IS NULL
+    ALTER TABLE [Users] ADD [KiwifyManaged] bit NOT NULL
+      CONSTRAINT [DF_Users_KiwifyManaged] DEFAULT (0);
+""");
+
     await Run("password-reset-tokens-table", """
 IF OBJECT_ID(N'[PasswordResetTokens]', N'U') IS NULL
 BEGIN
@@ -546,6 +569,71 @@ IF NOT EXISTS (
 )
     CREATE INDEX [IX_PasswordResetTokens_UserId_CreatedAt]
         ON [PasswordResetTokens] ([UserId], [CreatedAt]);
+""");
+
+    await Run("kiwify-entitlements-table", """
+IF OBJECT_ID(N'[KiwifyEntitlements]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [KiwifyEntitlements] (
+        [Id] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [ProductId] nvarchar(120) NOT NULL,
+        [OrderId] nvarchar(120) NOT NULL,
+        [SubscriptionId] nvarchar(120) NULL,
+        [Status] nvarchar(24) NOT NULL,
+        [PaidThroughUtc] datetime2 NOT NULL,
+        [UpdatedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_KiwifyEntitlements] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_KiwifyEntitlements_Users_UserId] FOREIGN KEY ([UserId])
+          REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+END;
+""");
+
+    await Run("kiwify-entitlement-subscription-index", """
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_KiwifyEntitlements_ProductId_SubscriptionId'
+  AND object_id = OBJECT_ID(N'[KiwifyEntitlements]'))
+    CREATE UNIQUE INDEX [IX_KiwifyEntitlements_ProductId_SubscriptionId]
+      ON [KiwifyEntitlements] ([ProductId], [SubscriptionId])
+      WHERE [SubscriptionId] IS NOT NULL;
+""");
+
+    await Run("kiwify-entitlement-order-index", """
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_KiwifyEntitlements_ProductId_OrderId'
+  AND object_id = OBJECT_ID(N'[KiwifyEntitlements]'))
+    CREATE UNIQUE INDEX [IX_KiwifyEntitlements_ProductId_OrderId]
+      ON [KiwifyEntitlements] ([ProductId], [OrderId]);
+""");
+
+    await Run("kiwify-entitlement-user-index", """
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_KiwifyEntitlements_UserId_PaidThroughUtc'
+  AND object_id = OBJECT_ID(N'[KiwifyEntitlements]'))
+    CREATE INDEX [IX_KiwifyEntitlements_UserId_PaidThroughUtc]
+      ON [KiwifyEntitlements] ([UserId], [PaidThroughUtc]);
+""");
+
+    await Run("kiwify-webhook-receipts-table", """
+IF OBJECT_ID(N'[KiwifyWebhookReceipts]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [KiwifyWebhookReceipts] (
+        [Id] uniqueidentifier NOT NULL,
+        [EventKey] nvarchar(64) NOT NULL,
+        [EventType] nvarchar(64) NOT NULL,
+        [OrderId] nvarchar(120) NOT NULL,
+        [SubscriptionId] nvarchar(120) NULL,
+        [ProductId] nvarchar(120) NOT NULL,
+        [UserId] uniqueidentifier NULL,
+        [ReceivedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_KiwifyWebhookReceipts] PRIMARY KEY ([Id])
+    );
+END;
+""");
+
+    await Run("kiwify-webhook-receipt-key-index", """
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_KiwifyWebhookReceipts_EventKey'
+  AND object_id = OBJECT_ID(N'[KiwifyWebhookReceipts]'))
+    CREATE UNIQUE INDEX [IX_KiwifyWebhookReceipts_EventKey]
+      ON [KiwifyWebhookReceipts] ([EventKey]);
 """);
 
     setStep("schema-ready");

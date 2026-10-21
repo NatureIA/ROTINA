@@ -41,6 +41,11 @@ public class AuthController(AppDbContext db, IConfiguration config) : Controller
         if (user is null || !PasswordTools.Verify(password, user.PasswordHash))
             return Unauthorized(new { message = "E-mail ou senha inválidos." });
 
+        if (user.KiwifyManaged && !await db.KiwifyEntitlements.AnyAsync(x =>
+            x.UserId == user.Id && x.PaidThroughUtc > DateTime.UtcNow &&
+            (x.Status == "active" || x.Status == "canceled" || x.Status == "late")))
+            return StatusCode(403, new { message = "Seu acesso está inativo. Verifique sua compra ou assinatura." });
+
         var identityEmail = user.Email ?? user.Login;
 
         var key = config["Jwt:Key"] ?? string.Empty;
