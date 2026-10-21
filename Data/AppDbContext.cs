@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<KiwifyEntitlement> KiwifyEntitlements => Set<KiwifyEntitlement>();
     public DbSet<KiwifyWebhookReceipt> KiwifyWebhookReceipts => Set<KiwifyWebhookReceipt>();
+    public DbSet<KiwifyWebhookDiagnostic> KiwifyWebhookDiagnostics => Set<KiwifyWebhookDiagnostic>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Activity> Activities => Set<Activity>();
     public DbSet<Execution> Executions => Set<Execution>();
@@ -38,6 +39,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<KiwifyWebhookReceipt>()
             .HasIndex(x => x.EventKey).IsUnique();
+        modelBuilder.Entity<KiwifyWebhookDiagnostic>()
+            .HasIndex(x => x.ReceivedAtUtc);
 
         modelBuilder.Entity<PasswordResetToken>()
             .HasIndex(x => x.TokenHash).IsUnique();

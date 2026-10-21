@@ -67,7 +67,10 @@ public class KiwifyWebhookController(
 
             var product = Text(Nested(root, "Product"), "product_id");
             if (!string.Equals(product, expectedProduct, StringComparison.Ordinal))
+            {
+                await RecordIgnoredAsync("ignored_product", root, product, cancellationToken);
                 return Ok(new { status = "ignored_product" });
+            }
 
             var eventType = Text(root, "webhook_event_type").ToLowerInvariant() switch
             {
@@ -81,7 +84,10 @@ public class KiwifyWebhookController(
             };
             // Este produto é de compra única; não tratar notificações recorrentes.
             if (eventType is not (Approved or Refunded or Chargedback))
+            {
+                await RecordIgnoredAsync("ignored_non_purchase_event", root, product, cancellationToken);
                 return Ok(new { status = "ignored_non_purchase_event" });
+            }
 
             var orderId = Text(root, "order_id");
             var subscriptionId = Text(root, "subscription_id");
@@ -89,7 +95,10 @@ public class KiwifyWebhookController(
                 return UnprocessableEntity(new { message = "Identificador de pedido inválido." });
 
             if (!string.IsNullOrWhiteSpace(subscriptionId))
+            {
+                await RecordIgnoredAsync("ignored_subscription", root, product, cancellationToken);
                 return Ok(new { status = "ignored_subscription" });
+            }
 
             // A mesma cobrança pode gerar tanto compra aprovada quanto renovação.
             // A identificação abaixo impede aumentar o prazo duas vezes.
@@ -252,6 +261,23 @@ public class KiwifyWebhookController(
 
             return Ok(new { status = "processed" });
         }
+    }
+
+    // Apenas eventos cuja assinatura HMAC já foi autenticada chegam aqui.
+    // Não grava PII, corpo da requisição, assinatura ou token.
+    private async Task RecordIgnoredAsync(
+        string outcome, JsonElement payload, string productId, CancellationToken cancellationToken)
+    {
+        var eventType = Text(payload, "webhook_event_type");
+        db.KiwifyWebhookDiagnostics.Add(new KiwifyWebhookDiagnostic
+        {
+            Outcome = outcome,
+            EventType = eventType.Length <= 64 ? eventType : eventType[..64],
+            ProductId = productId.Length <= 120 ? productId : productId[..120],
+            ReceivedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Kiwify: evento autenticado não processado: {Outcome}.", outcome);
     }
 
     private static string ComputeEventKey(string product, string order, string type) =>

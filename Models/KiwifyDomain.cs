@@ -28,3 +28,15 @@ public class KiwifyWebhookReceipt
     public Guid? UserId { get; set; }
     public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+
+// Diagnóstico de eventos autenticados que não geraram compras.
+// Não armazenar nome, e-mail, corpo do JSON, assinatura ou token.
+public class KiwifyWebhookDiagnostic
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    [MaxLength(40)] public string Outcome { get; set; } = string.Empty;
+    [MaxLength(64)] public string EventType { get; set; } = string.Empty;
+    [MaxLength(120)] public string ProductId { get; set; } = string.Empty;
+    public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
+}

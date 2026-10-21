@@ -636,5 +636,30 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_KiwifyWebhookReceipts
       ON [KiwifyWebhookReceipts] ([EventKey]);
 """);
 
+    // Registro seguro de eventos autenticados ignorados. Não contém dados pessoais.
+    await Run("kiwify-webhook-diagnostics-table", """
+IF OBJECT_ID(N'[KiwifyWebhookDiagnostics]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [KiwifyWebhookDiagnostics] (
+        [Id] uniqueidentifier NOT NULL,
+        [Outcome] nvarchar(40) NOT NULL,
+        [EventType] nvarchar(64) NOT NULL,
+        [ProductId] nvarchar(120) NOT NULL,
+        [ReceivedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_KiwifyWebhookDiagnostics] PRIMARY KEY ([Id])
+    );
+END;
+""");
+
+    await Run("kiwify-webhook-diagnostics-created-index", """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_KiwifyWebhookDiagnostics_ReceivedAtUtc'
+      AND object_id = OBJECT_ID(N'[KiwifyWebhookDiagnostics]')
+)
+    CREATE INDEX [IX_KiwifyWebhookDiagnostics_ReceivedAtUtc]
+        ON [KiwifyWebhookDiagnostics] ([ReceivedAtUtc]);
+""");
+
     setStep("schema-ready");
 }
