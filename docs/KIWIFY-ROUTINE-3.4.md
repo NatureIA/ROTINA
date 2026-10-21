@@ -26,7 +26,7 @@ Somente contas **novas**, criadas diretamente pela integração, recebem `Users.
 - `Kiwify__ProductId` = `b537da80-c888-11f1-b0f5-37ff8e851a7d`
 - `Kiwify__InitialDays` = `7`
 - `Kiwify__OneTimeAccessMonths` = `12`
-- `Kiwify__WebhookToken` = segredo **novo**, criado na Kiwify. Nunca publicar no repositório, capturas ou conversas.
+- `Kiwify__WebhookToken` = token **novo gerado pela Kiwify** durante criação do webhook. Os tokens gerados pela plataforma podem ter cerca de 11 caracteres; o receptor exige pelo menos 10 e valida a assinatura HMAC. Nunca publicar no repositório, capturas ou conversas. O token que apareceu anteriormente em captura não deve ser reutilizado.
 - `Kiwify__Enabled` = `false` até concluir homologação e revisão da ativação.
 - Endpoint futuro: `POST https://routine.runasp.net/api/integrations/kiwify/webhook`
 - Na Kiwify: selecionar **somente** o produto exato, com eventos **Compra aprovada**, **Reembolso** e **Chargeback**.

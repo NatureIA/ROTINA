@@ -38,7 +38,7 @@ public class KiwifyWebhookController(
 
         var secret = configuration["Kiwify:WebhookToken"];
         var expectedProduct = configuration["Kiwify:ProductId"];
-        if (string.IsNullOrWhiteSpace(secret) || secret.Length < 24 ||
+        if (string.IsNullOrWhiteSpace(secret) || secret.Length < 10 ||
             string.IsNullOrWhiteSpace(expectedProduct))
             return StatusCode(503, new { message = "Integração ainda não configurada." });
 
