@@ -17,7 +17,7 @@ namespace Routine.Tests;
 
 public class KiwifyWebhookTests
 {
-    private const string Secret = "rotina-kiwify-segredo-de-exemplo-1234567";
+    private const string Secret = "kiwifyA9x7Z";
     private const string ProductId = "produto-routine-correto";
 
     [Fact]
