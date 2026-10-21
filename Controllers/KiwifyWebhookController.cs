@@ -79,13 +79,17 @@ public class KiwifyWebhookController(
                 "order_chargeback" => Chargedback,
                 var other => other
             };
-            if (eventType is not (Approved or Renewed or Refunded or Chargedback or Late or Canceled))
-                return Ok(new { status = "ignored_event" });
+            // Este produto é de compra única; não tratar notificações recorrentes.
+            if (eventType is not (Approved or Refunded or Chargedback))
+                return Ok(new { status = "ignored_non_purchase_event" });
 
             var orderId = Text(root, "order_id");
             var subscriptionId = Text(root, "subscription_id");
             if (orderId.Length is 0 or > 120 || subscriptionId.Length > 120)
                 return UnprocessableEntity(new { message = "Identificador de pedido inválido." });
+
+            if (!string.IsNullOrWhiteSpace(subscriptionId))
+                return Ok(new { status = "ignored_subscription" });
 
             // A mesma cobrança pode gerar tanto compra aprovada quanto renovação.
             // A identificação abaixo impede aumentar o prazo duas vezes.
@@ -108,9 +112,9 @@ public class KiwifyWebhookController(
             string? recipient = null;
             Guid? userId = null;
 
-            if (eventType is Approved or Renewed)
+            if (eventType == Approved)
             {
-                if (eventType == Approved && Text(root, "order_status") is not ("paid" or "approved"))
+                if (Text(root, "order_status") is not ("paid" or "approved"))
                     return UnprocessableEntity(new { message = "Compra ainda não confirmada." });
 
                 var customer = Nested(root, "Customer");
@@ -119,10 +123,10 @@ public class KiwifyWebhookController(
                     !string.Equals(addr.Address, email, StringComparison.OrdinalIgnoreCase))
                     return UnprocessableEntity(new { message = "Comprador sem e-mail válido." });
 
-                var subscription = !string.IsNullOrWhiteSpace(subscriptionId);
-                var months = configuration.GetValue<int>(
-                    subscription ? "Kiwify:SubscriptionCycleMonths" : "Kiwify:OneTimeAccessMonths");
-                if (months is < 1 or > 36)
+                // Regra comercial exclusiva deste produto: sete dias e doze meses.
+                var months = configuration.GetValue<int>("Kiwify:OneTimeAccessMonths");
+                var initialDays = configuration.GetValue<int>("Kiwify:InitialDays");
+                if (months != 12 || initialDays != 7)
                     return StatusCode(503, new { message = "Prazo comercial ainda não configurado." });
 
                 var user = await db.Users.FirstOrDefaultAsync(
@@ -150,39 +154,44 @@ public class KiwifyWebhookController(
                 }
 
                 userId = user.Id;
-                var entitlement = subscription
-                    ? await db.KiwifyEntitlements.FirstOrDefaultAsync(x =>
-                        x.ProductId == product && x.SubscriptionId == subscriptionId, cancellationToken)
-                    : await db.KiwifyEntitlements.FirstOrDefaultAsync(x =>
-                        x.ProductId == product && x.OrderId == orderId, cancellationToken);
-
-                if (entitlement is null)
+                // O mesmo pedido nunca acrescenta prazo, mesmo que o recibo do
+                // webhook não exista por alguma falha ou mudança de versão.
+                var existingOrder = await db.KiwifyEntitlements.FirstOrDefaultAsync(x =>
+                    x.ProductId == product && x.OrderId == orderId, cancellationToken);
+                if (existingOrder is not null)
                 {
-                    entitlement = new KiwifyEntitlement
-                    {
-                        Id = Guid.NewGuid(), UserId = user.Id, ProductId = product,
-                        OrderId = orderId, SubscriptionId = subscription ? subscriptionId : null,
-                        Status = "active", PaidThroughUtc = now.AddMonths(months), UpdatedAtUtc = now
-                    };
-                    db.KiwifyEntitlements.Add(entitlement);
+                    if (existingOrder.UserId != user.Id)
+                        return Conflict(new { message = "Pedido vinculado a outra conta." });
+                    receipt.UserId = user.Id;
+                    db.KiwifyWebhookReceipts.Add(receipt);
+                    try { await db.SaveChangesAsync(cancellationToken); }
+                    catch (DbUpdateException)
+                    { return Conflict(new { message = "Evento em processamento; reenviar." }); }
+                    return Ok(new { status = "already_purchased" });
                 }
-                else
+
+                var earlierPurchases = await db.KiwifyEntitlements.AsNoTracking()
+                    .Where(x => x.UserId == user.Id && x.ProductId == product)
+                    .Select(x => new { x.Status, x.PaidThroughUtc })
+                    .ToListAsync(cancellationToken);
+                var currentExpiry = earlierPurchases
+                    .Where(x => x.Status == "active" && x.PaidThroughUtc > now)
+                    .Select(x => (DateTime?)x.PaidThroughUtc)
+                    .Max();
+
+                var expiry = KiwifyAccessPolicy.CalculateExpiryUtc(
+                    now,
+                    previousPurchaseExists: earlierPurchases.Count > 0,
+                    currentValidExpiryUtc: currentExpiry,
+                    initialDays: initialDays,
+                    accessMonths: months);
+
+                db.KiwifyEntitlements.Add(new KiwifyEntitlement
                 {
-                    if (entitlement.UserId != user.Id)
-                        return Conflict(new { message = "Assinatura vinculada a outra conta." });
-
-                    // Uma devolução/chargeback não pode ser revertida pela entrega atrasada
-                    // do mesmo pedido. Uma cobrança nova, com novo ID, pode reativar.
-                    if (entitlement.Status is "refunded" or "chargeback" &&
-                        entitlement.OrderId == orderId)
-                        return Conflict(new { message = "Pedido reembolsado; revisão necessária." });
-
-                    entitlement.PaidThroughUtc = (entitlement.PaidThroughUtc > now
-                        ? entitlement.PaidThroughUtc : now).AddMonths(months);
-                    entitlement.OrderId = orderId;
-                    entitlement.Status = "active";
-                    entitlement.UpdatedAtUtc = now;
-                }
+                    Id = Guid.NewGuid(), UserId = user.Id, ProductId = product,
+                    OrderId = orderId, SubscriptionId = null,
+                    Status = "active", PaidThroughUtc = expiry, UpdatedAtUtc = now
+                });
             }
             else
             {

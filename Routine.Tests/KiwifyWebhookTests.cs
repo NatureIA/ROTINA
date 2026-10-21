@@ -84,23 +84,14 @@ public class KiwifyWebhookTests
     }
 
     [Fact]
-    public async Task SubscriptionCancelPreservesPaidPeriodAndRenewalExtendsIt()
+    public async Task NonPurchaseSubscriptionEventsAreIgnored()
     {
         await using var db = Database();
         var controller = Controller(db, new FakeSender());
-        await Deliver(controller, Message("order_approved", "sub-order-1", ProductId, "sub-1"));
-        var firstExpiry = Assert.Single(db.KiwifyEntitlements).PaidThroughUtc;
-
-        var cancel = await Deliver(controller, Message("subscription_canceled", "sub-order-1", ProductId, "sub-1"));
-        Assert.IsType<OkObjectResult>(cancel);
-        Assert.Equal("canceled", Assert.Single(db.KiwifyEntitlements).Status);
-        Assert.Equal(firstExpiry, Assert.Single(db.KiwifyEntitlements).PaidThroughUtc);
-
-        var renew = await Deliver(controller, Message("subscription_renewed", "sub-order-2", ProductId, "sub-1"));
-        Assert.IsType<OkObjectResult>(renew);
-        Assert.Equal("active", Assert.Single(db.KiwifyEntitlements).Status);
-        Assert.True(Assert.Single(db.KiwifyEntitlements).PaidThroughUtc > firstExpiry);
-        Assert.Single(db.Users);
+        Assert.IsType<OkObjectResult>(
+            await Deliver(controller, Message("subscription_renewed", "sub-order-2", ProductId, "sub-1")));
+        Assert.Empty(db.Users);
+        Assert.Empty(db.KiwifyEntitlements);
     }
 
     [Fact]
@@ -129,17 +120,23 @@ public class KiwifyWebhookTests
     }
 
     [Fact]
-    public async Task AnotherEventForSamePaidOrderCannotExtendSubscriptionTwice()
+    public async Task NewPurchaseExtendsExistingPeriodAndRepeatedOrderDoesNot()
     {
         await using var db = Database();
         var controller = Controller(db, new FakeSender());
-        await Deliver(controller, Message("order_approved", "sub-order-10", ProductId, "sub-10"));
+        await Deliver(controller, Message("order_approved", "order-10"));
         var before = Assert.Single(db.KiwifyEntitlements).PaidThroughUtc;
 
-        var response = await Deliver(controller, Message("subscription_renewed", "sub-order-10", ProductId, "sub-10"));
-        Assert.IsType<OkObjectResult>(response);
-        Assert.Equal(before, Assert.Single(db.KiwifyEntitlements).PaidThroughUtc);
-        Assert.Single(db.KiwifyWebhookReceipts);
+        var renewal = await Deliver(controller, Message("order_approved", "order-11"));
+        Assert.IsType<OkObjectResult>(renewal);
+        Assert.Equal(2, db.KiwifyEntitlements.Count());
+        var newest = db.KiwifyEntitlements.Single(x => x.OrderId == "order-11");
+        Assert.Equal(before.AddMonths(12), newest.PaidThroughUtc);
+
+        var duplicate = await Deliver(controller, Message("order_approved", "order-11"));
+        Assert.IsType<OkObjectResult>(duplicate);
+        Assert.Equal(2, db.KiwifyEntitlements.Count());
+        Assert.Equal(before.AddMonths(12), newest.PaidThroughUtc);
     }
 
     [Fact]
@@ -191,6 +188,7 @@ public class KiwifyWebhookTests
             ["Kiwify:WebhookToken"] = Secret,
             ["Kiwify:ProductId"] = ProductId,
             ["Kiwify:OneTimeAccessMonths"] = "12",
+            ["Kiwify:InitialDays"] = "7",
             ["Kiwify:SubscriptionCycleMonths"] = "1",
             ["Kiwify:GraceDays"] = "0"
         }).Build();
