@@ -18,7 +18,7 @@ namespace Routine.Tests;
 public class KiwifyWebhookTests
 {
     private const string Secret = "kiwifyA9x7Z";
-    private const string ProductId = "produto-routine-correto";
+    private const string ProductId = "b537da80-c888-11f1-b0f5-37ff8e851a7d";
 
     [Fact]
     public async Task ApprovedCreatesManagedUserAndIsIdempotent()
@@ -65,6 +65,35 @@ public class KiwifyWebhookTests
         var result = await Deliver(controller, json);
         Assert.IsType<OkObjectResult>(result);
         Assert.Empty(db.Users);
+        Assert.Empty(db.KiwifyWebhookReceipts);
+        Assert.Empty(db.KiwifyEntitlements);
+        var diagnostic = Assert.Single(db.KiwifyWebhookDiagnostics);
+        Assert.Equal("ignored_product", diagnostic.Outcome);
+        Assert.Equal("order_approved", diagnostic.EventType);
+        Assert.Equal("other-product", diagnostic.ProductId);
+    }
+
+    [Fact]
+    public async Task KiwifyExampleProductReturns200ButNeverCreatesCustomer()
+    {
+        await using var db = Database();
+        var controller = Controller(db, new FakeSender());
+        var result = await Deliver(controller,
+            Message("order_approved", "example-order", "example-product-id"));
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Empty(db.Users);
+        Assert.Empty(db.KiwifyEntitlements);
+        Assert.Empty(db.KiwifyWebhookReceipts);
+        Assert.Equal("ignored_product", Assert.Single(db.KiwifyWebhookDiagnostics).Outcome);
+    }
+
+    [Fact]
+    public async Task RejectedSignatureNeverCreatesDiagnosticRecord()
+    {
+        await using var db = Database();
+        var controller = Controller(db, new FakeSender());
+        await Deliver(controller, Message("order_approved", "bad-hmac"), "bad-signature");
+        Assert.Empty(db.KiwifyWebhookDiagnostics);
     }
 
     [Fact]
