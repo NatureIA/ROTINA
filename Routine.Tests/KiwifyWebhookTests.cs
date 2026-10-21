@@ -120,6 +120,65 @@ public class KiwifyWebhookTests
     }
 
     [Fact]
+    public async Task JoaoVictorJefersonAndLaraRemainLifetimeUsers()
+    {
+        await using var db = Database();
+        var protectedUsers = new[]
+        {
+            ("João", "joao@exemplo.com"),
+            ("Victor", "victor@exemplo.com"),
+            ("Jeferson", "jeferson@exemplo.com"),
+            ("Lara", "lara@exemplo.com")
+        };
+        const string originalPassword = "SenhaPermanente123!";
+        foreach (var (name, email) in protectedUsers)
+        {
+            db.Users.Add(new User
+            {
+                Login = email, Email = email, NormalizedEmail = email,
+                DisplayName = name, KiwifyManaged = false,
+                PasswordHash = PasswordTools.Hash(originalPassword)
+            });
+        }
+        await db.SaveChangesAsync();
+
+        var controller = Controller(db, new FakeSender());
+        foreach (var (name, email) in protectedUsers)
+        {
+            // Mesmo que uma dessas pessoas compre depois, não se torna temporária.
+            var json = Message("order_approved", "legacy-" + name)
+                .Replace("maria@exemplo.com", email)
+                .Replace("Maria Silva", name);
+            Assert.IsType<OkObjectResult>(await Deliver(controller, json));
+
+            var user = await db.Users.SingleAsync(x => x.NormalizedEmail == email);
+            Assert.Equal(name, user.DisplayName);
+            Assert.False(user.KiwifyManaged);
+            Assert.True(PasswordTools.Verify(originalPassword, user.PasswordHash));
+
+            // Nem o reembolso nem uma compra vencida retiram acesso de legado.
+            var refund = Message("order_refunded", "legacy-" + name)
+                .Replace("maria@exemplo.com", email)
+                .Replace("Maria Silva", name);
+            Assert.IsType<OkObjectResult>(await Deliver(controller, refund));
+
+            var auth = new AuthController(db,
+                new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Jwt:Key"] = "chave-de-teste-segura-com-mais-de-32-caracteres",
+                    ["Jwt:Issuer"] = "routine-tests", ["Jwt:Audience"] = "routine-tests"
+                }).Build());
+            var login = await auth.Login(new LoginRequest(email, originalPassword));
+            Assert.IsType<OkObjectResult>(login);
+        }
+
+        Assert.Equal(4, db.Users.Count());
+        Assert.All(db.Users, x => Assert.False(x.KiwifyManaged));
+        Assert.Equal(4, db.KiwifyEntitlements.Count());
+        Assert.All(db.KiwifyEntitlements, x => Assert.Equal("refunded", x.Status));
+    }
+
+    [Fact]
     public async Task NewPurchaseExtendsExistingPeriodAndRepeatedOrderDoesNot()
     {
         await using var db = Database();
